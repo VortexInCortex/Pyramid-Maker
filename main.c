@@ -1,7 +1,8 @@
+#include <math.h>
 #include <stdio.h>
 #include <unistd.h>
 
-#define _0 "\x1b[30m"
+#define F_BLACK "\x1b[30m"
 #define F_RED "\x1b[31m"
 #define F_GREEN "\x1b[32m"
 #define F_YELLOW "\x1b[33m"
@@ -46,17 +47,41 @@ struct pixel {
 };
 
 void colorizePixel(char stringBuffer[], unsigned char bRGB, int i) {
+    for (int k = 0; k < 5; k++) {
+        char redundant[5] = "\x1b[96m";
+        stringBuffer[i * 6 - 6 + k] = redundant[k];
+    }
+    if ((bRGB & 0b00001000) == 0)
+        stringBuffer[i * 6 - 3] = 3;
+    else
+        stringBuffer[i * 6 - 3] = 9;
+
+    if ((bRGB & 0b00000111) == 0)
+        stringBuffer[i * 6 - 2] = 0;
+    else if ((bRGB & 0b00000111) == 2)
+        stringBuffer[i * 6 - 2] = 2;
+    else if ((bRGB & 0b00000111) == 5)
+        stringBuffer[i * 6 - 2] = 5;
+    else if ((bRGB & 0b00000111) == 1)
+        stringBuffer[i * 6 - 2] = 4;
+    else if ((bRGB & 0b00000111) == 3)
+        stringBuffer[i * 6 - 2] = 6;
+    else if ((bRGB & 0b00000111) == 4)
+        stringBuffer[i * 6 - 2] = 1;
+    else if ((bRGB & 0b00000111) == 6)
+        stringBuffer[i * 6 - 2] = 3;
+    else
+        printf("DEBUG: (bRGB & 0b00000111) = %d\n", (bRGB & 0b00000111));
 }
 
 void showImage(struct pixel canvas[40][156]) {
-    printf("%s",F_BRIGHTBLACK);
     for (int j = 0; j < 40; j++) {
-        char stringBuffer[1092] = {0};
+        char stringBuffer[936] = {0};
         for (int i = 1; i <= 156; i++) {
-            stringBuffer[i * 7 - 1] = canvas[j][i - 1].symbol;
+            stringBuffer[i * 6 - 1] = canvas[j][i - 1].symbol;
             colorizePixel(stringBuffer, canvas[j][i - 1].bRGB, i);
         }
-        fwrite(stringBuffer, 1092, 1, stdout);
+        fwrite(stringBuffer, 936, 1, stdout);
     }
 }
 
@@ -99,8 +124,8 @@ void backgroundFill(struct pixel canvas[40][156]) {
 void initializeCanvas(struct pixel canvas[40][156]) {
     for (int i = 0; i < 156; i++) {
         for (int j = 0; j < 40; j++) {
-            canvas[j][i].symbol = ' ';
-            canvas[j][i].bRGB = 0;
+            canvas[j][i].symbol = '.';
+            canvas[j][i].bRGB = 0b00001000;
         }
     }
 }
