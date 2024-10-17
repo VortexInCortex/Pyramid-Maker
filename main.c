@@ -48,33 +48,28 @@ struct pixel {
 
 void colorizePixel(char stringBuffer[], unsigned char bRGB, int i) {
     for (int k = 0; k < 5; k++) {
-        char redundant[5] = "\x1b[96m";
-        stringBuffer[i * 6 - 6 + k] = redundant[k];
+        stringBuffer[i * 6 - 6 + k] = "\x1b[96m"[k];
     }
-    if ((bRGB & 0b00001000) == 0)
-        stringBuffer[i * 6 - 3] = 3;
-    else
-        stringBuffer[i * 6 - 3] = 9;
 
-    if ((bRGB & 0b00000111) == 0)
-        stringBuffer[i * 6 - 2] = 0;
-    else if ((bRGB & 0b00000111) == 2)
-        stringBuffer[i * 6 - 2] = 2;
-    else if ((bRGB & 0b00000111) == 5)
-        stringBuffer[i * 6 - 2] = 5;
-    else if ((bRGB & 0b00000111) == 1)
-        stringBuffer[i * 6 - 2] = 4;
-    else if ((bRGB & 0b00000111) == 3)
-        stringBuffer[i * 6 - 2] = 6;
-    else if ((bRGB & 0b00000111) == 4)
-        stringBuffer[i * 6 - 2] = 1;
-    else if ((bRGB & 0b00000111) == 6)
-        stringBuffer[i * 6 - 2] = 3;
-    else
-        printf("DEBUG: (bRGB & 0b00000111) = %d\n", (bRGB & 0b00000111));
+    unsigned char brightness = bRGB >> 3;
+    stringBuffer[i * 6 - 3] = brightness ? 9 : 3;
+
+    unsigned char rgb = (bRGB & 0b00000111);
+    switch (rgb) {
+        case 0: stringBuffer[i * 6 - 2] = 0; break;
+        case 2: stringBuffer[i * 6 - 2] = 2; break;
+        case 5: stringBuffer[i * 6 - 2] = 5; break;
+        case 1: stringBuffer[i * 6 - 2] = 4; break;
+        case 3: stringBuffer[i * 6 - 2] = 6; break;
+        case 4: stringBuffer[i * 6 - 2] = 1; break;
+        case 6: stringBuffer[i * 6 - 2] = 3; break;
+        default: printf("DEBUG: (bRGB & 0b00000111) = %d\n", rgb); break;
+    }
 }
 
+
 void showImage(struct pixel canvas[40][156]) {
+
     for (int j = 0; j < 40; j++) {
         char stringBuffer[936] = {0};
         for (int i = 1; i <= 156; i++) {
@@ -85,6 +80,7 @@ void showImage(struct pixel canvas[40][156]) {
     }
 }
 
+
 void circleEdge(struct pixel canvas[40][156]) {
     for (int j = 0; j < 40; j++) {
         for (int i = 0; i < 156; i++) {
@@ -94,8 +90,11 @@ void circleEdge(struct pixel canvas[40][156]) {
 
             if (distFromOriginSquared < 2035 && distFromOriginSquared > 1950) {
                 canvas[j][i].symbol = '^';
-                canvas[j][i].bRGB = 0b00001000;
+                canvas[j][i].bRGB = 0b00001110;
             }
+            else
+                canvas[j][i].symbol = '.';
+            canvas[j][i].bRGB = 0b00001110;
         }
     }
 }
@@ -113,9 +112,9 @@ void backgroundFill(struct pixel canvas[40][156]) {
                 if (i % 2 == 0)
                     canvas[j][i].symbol = '^';
                 else
-                    canvas[j][i].symbol = ' ';
+                    canvas[j][i].symbol = '-';
 
-                canvas[j][i].bRGB = 0b00001000;
+                canvas[j][i].bRGB = 0b00001110;
             }
         }
     }
@@ -124,8 +123,8 @@ void backgroundFill(struct pixel canvas[40][156]) {
 void initializeCanvas(struct pixel canvas[40][156]) {
     for (int i = 0; i < 156; i++) {
         for (int j = 0; j < 40; j++) {
-            canvas[j][i].symbol = '.';
-            canvas[j][i].bRGB = 0b00001000;
+            canvas[j][i].symbol = '+';
+            canvas[j][i].bRGB = 0b00001110;
         }
     }
 }
