@@ -48,7 +48,8 @@ struct pixel {
 
 void colorizePixel(char stringBuffer[], unsigned char bRGB, int i) {
     for (int k = 0; k < 5; k++) {
-        stringBuffer[i * 6 - 6 + k] = "\x1b[96m"[k];
+        char var[5] = "\x1b[96m";
+        stringBuffer[i * 6 - 6 + k] = var[k];
     }
 
     unsigned char brightness = bRGB >> 3;
@@ -72,7 +73,7 @@ void showImage(struct pixel canvas[40][156]) {
 
     for (int j = 0; j < 40; j++) {
         char stringBuffer[936] = {0};
-        for (int i = 1; i <= 156; i++) {
+        for     (int i = 1; i <= 156; i++) {
             stringBuffer[i * 6 - 1] = canvas[j][i - 1].symbol;
             colorizePixel(stringBuffer, canvas[j][i - 1].bRGB, i);
         }
@@ -92,9 +93,6 @@ void circleEdge(struct pixel canvas[40][156]) {
                 canvas[j][i].symbol = '^';
                 canvas[j][i].bRGB = 0b00001110;
             }
-            else
-                canvas[j][i].symbol = '.';
-            canvas[j][i].bRGB = 0b00001110;
         }
     }
 }
@@ -112,7 +110,7 @@ void backgroundFill(struct pixel canvas[40][156]) {
                 if (i % 2 == 0)
                     canvas[j][i].symbol = '^';
                 else
-                    canvas[j][i].symbol = '-';
+                    canvas[j][i].symbol = '.';
 
                 canvas[j][i].bRGB = 0b00001110;
             }
