@@ -133,10 +133,8 @@ void showImage(struct pixel canvas[41][156]) {
             colorizePixel(stringBuffer, canvas[j][i - 1].bRGB, j, i);
         }
     }
-    system("cls");
-    //write(1, "\x1b[2J\x1b[H", 7); // 1 being stdout
-    fwrite(stringBuffer, 38376, 1,stdout);
-    //write(1, stringBuffer, 38376); // 1 being stdout
+    write(1, "\x1b[2J\x1b[H", 7); // 1 being stdout
+    write(1, stringBuffer, 38376); // 1 being stdout
 
     stopTimer();
     el_showImage = getElapsedTimeInMicroseconds();
