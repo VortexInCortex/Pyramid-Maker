@@ -1,8 +1,8 @@
 #include <stdio.h>
-#include <unistd.h>
 #include <conio.h>
-#include <math.h>
 #include <windows.h>
+#include <unistd.h>
+#include <time.h>
 
 #define F_BLACK "\x1b[30m"
 #define F_RED "\x1b[31m"
@@ -133,8 +133,11 @@ void showImage(struct pixel canvas[41][156]) {
             colorizePixel(stringBuffer, canvas[j][i - 1].bRGB, j, i);
         }
     }
-    write(1, "\x1b[2J\x1b[H", 7); // 1 being stdout
-    write(1, stringBuffer, 38376); // 1 being stdout
+    //write(1, "\x1b[H", 7); // 1 being stdout
+    system("cls");
+    fwrite(stringBuffer, 38376, 1, stdout);
+    fflush(stdout);
+    //write(1, stringBuffer, 38376); // 1 being stdout
 
     stopTimer();
     el_showImage = getElapsedTimeInMicroseconds();
@@ -171,10 +174,21 @@ void fForwardFaceTriangle(struct pixel canvas[41][156], int iheight) {
                 // Is point inside triangle?
                 if (area1 + area2 + area3 <= areaOrig) {
                     if (j > (41 - iheight + iheight / 10)) {
-                        canvas[j][i].symbol = '='; // = - _ WHICH?
+                        if (canvas[j][i - 1].symbol == 'v')
+                            canvas[j][i].symbol = 'I';
+                        else if ((i + (j % 3) * 3) % 9 == 0)
+                            canvas[j][i].symbol = 'I';
+                        else
+                            canvas[j][i].symbol = '_';
                         canvas[j][i].bRGB = 0b0111;
                     } else {
-                        canvas[j][i].symbol = 'U';
+                        if (canvas[j][i - 1].symbol == 'v' || canvas[j][i + 1].symbol == 'v') {
+                            if (i < 78)
+                                canvas[j][i].symbol = '/';
+                            else
+                                canvas[j][i].symbol = '\\';
+                        } else
+                            canvas[j][i].symbol = 'U';
                         canvas[j][i].bRGB = 0b1110;
                     }
                 }
@@ -208,7 +222,7 @@ void fOutlineTriangle(struct pixel canvas[41][156], int iheight) {
 
                 // Is point inside triangle?
                 if (area1 + area2 + area3 <= areaOrig) {
-                    canvas[j][i].symbol = '*';
+                    canvas[j][i].symbol = 'v';
                     canvas[j][i].bRGB = 0b1110;
                 }
             }
@@ -310,13 +324,13 @@ void bCircleEdge(struct pixel canvas[41][156]) {
                     (canvas[j + 1][i].symbol == '#' && canvas[j - 1][i].symbol != '(' && canvas[j - 1][i].symbol != '#' && canvas[j][i - 1].symbol != '#' &&
                      canvas[j][i].symbol != '#')) {
                     canvas[j][i].symbol = '(';
-                    canvas[j][i].bRGB = 0b1110;
+                    canvas[j][i].bRGB = 0b1000;
                 }
             } else if ((canvas[j][i].symbol != '#' && canvas[j][i - 1].symbol == '#') ||
                        (canvas[j + 1][i].symbol == '#' && canvas[j - 1][i].symbol != ')' && canvas[j - 1][i].symbol != '#' && canvas[j][i + 1].symbol != '#' &&
                         canvas[j][i].symbol != '#')) {
                 canvas[j][i].symbol = ')';
-                canvas[j][i].bRGB = 0b1110;
+                canvas[j][i].bRGB = 0b1000;
             }
         }
     }
