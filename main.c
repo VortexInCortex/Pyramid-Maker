@@ -2,7 +2,6 @@
 #include <conio.h>
 #include <windows.h>
 #include <unistd.h>
-#include <time.h>
 
 #define F_BLACK "\x1b[30m"
 #define F_RED "\x1b[31m"
@@ -43,7 +42,8 @@
 #define B_BRIGHTWHITE "\x1b[107m"
 
 char buffer[40000] = {0};
-double el_initializeCanvas, el_bFill, el_bCircleEdge, el_bSun, el_fBloomTriangle, el_fOutlineTriangle, el_fForwardFaceTriangle, el_showImage, el_colorizePixel,
+double el_initializeCanvas, el_bFill, el_bCircleEdge, el_bSun, el_bDunes, el_fBloomTriangle, el_fOutlineTriangle, el_fForwardFaceTriangle, el_showImage,
+        el_colorizePixel,
         el_total,
         el_timeBetweenFrames = 0;
 LARGE_INTEGER start, end, freq, startTotal, endTotal;
@@ -133,11 +133,9 @@ void showImage(struct pixel canvas[41][156]) {
             colorizePixel(stringBuffer, canvas[j][i - 1].bRGB, j, i);
         }
     }
-    //write(1, "\x1b[H", 7); // 1 being stdout
-    system("cls");
+    write(1, "\x1b[H", 7); // 1 being stdout
     fwrite(stringBuffer, 38376, 1, stdout);
     fflush(stdout);
-    //write(1, stringBuffer, 38376); // 1 being stdout
 
     stopTimer();
     el_showImage = getElapsedTimeInMicroseconds();
@@ -174,22 +172,32 @@ void fForwardFaceTriangle(struct pixel canvas[41][156], int iheight) {
                 // Is point inside triangle?
                 if (area1 + area2 + area3 <= areaOrig) {
                     if (j > (41 - iheight + iheight / 10)) {
-                        if (canvas[j][i - 1].symbol == 'v')
+                        if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
+                            || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
                             canvas[j][i].symbol = 'I';
-                        else if ((i + (j % 3) * 3) % 9 == 0)
+                            canvas[j][i].bRGB = 0b1111;
+                        } else if ((i + (j % 3) * 3) % 9 == 0) {
                             canvas[j][i].symbol = 'I';
-                        else
+                            canvas[j][i].bRGB = 0b0111;
+                        } else {
                             canvas[j][i].symbol = '_';
-                        canvas[j][i].bRGB = 0b0111;
+                            canvas[j][i].bRGB = 0b0111;
+                        }
+                    } else if (j == 41 - iheight) {
+                        canvas[j][i].symbol = '^';
+                        canvas[j][i].bRGB = 0b0110;
                     } else {
-                        if (canvas[j][i - 1].symbol == 'v' || canvas[j][i + 1].symbol == 'v') {
+                        if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 3].symbol == '\\'
+                            || canvas[j][i + 3].symbol == '<' || canvas[j][i + 3].symbol == '/') {
                             if (i < 78)
                                 canvas[j][i].symbol = '/';
                             else
                                 canvas[j][i].symbol = '\\';
-                        } else
-                            canvas[j][i].symbol = 'U';
-                        canvas[j][i].bRGB = 0b1110;
+                            canvas[j][i].bRGB = 0b0110;
+                        } else {
+                            canvas[j][i].symbol = '#';
+                            canvas[j][i].bRGB = 0b1110;
+                        }
                     }
                 }
             }
@@ -222,7 +230,7 @@ void fOutlineTriangle(struct pixel canvas[41][156], int iheight) {
 
                 // Is point inside triangle?
                 if (area1 + area2 + area3 <= areaOrig) {
-                    canvas[j][i].symbol = 'v';
+                    canvas[j][i].symbol = '*';
                     canvas[j][i].bRGB = 0b1110;
                 }
             }
@@ -292,6 +300,13 @@ void fBloomTriangle(struct pixel canvas[41][156], int iheight) {
 
     stopTimer();
     el_fBloomTriangle = getElapsedTimeInMicroseconds();
+}
+
+void bDunes(struct pixel canvas[41][156], int iheight) {
+    startTimer();
+
+    stopTimer();
+    el_bDunes = getElapsedTimeInMicroseconds();
 }
 
 void bSun(struct pixel canvas[41][156], int iheight) {
@@ -398,6 +413,7 @@ void drawOutput(int iheight) {
                 bFill(canvas, iheight);
                 bCircleEdge(canvas);
                 bSun(canvas, iheight);
+                bDunes(canvas, iheight);
                 fBloomTriangle(canvas, iheight);
                 fOutlineTriangle(canvas, iheight);
                 fForwardFaceTriangle(canvas, iheight);
@@ -440,9 +456,10 @@ int main(void) {
 
     el_total = (el_bFill + el_bCircleEdge + el_fBloomTriangle + el_showImage) / 1000.0f;
     printf("\x1b[97mDEBUG: ELAPSED TIME IN EACH FUNCTION :\n\t\t\t"
-           "initializeCanvas = %.3lf ms\n\t\t\tbfill = %.3lf ms\n\t\t\tbCircleEdge = %.3lf ms\n\t\t\tbSun = %.3lf\n\t\t\tfBloomTriangle = %.3lf ms\n\t\t\t"
+           "initializeCanvas = %.3lf ms\n\t\t\tbfill = %.3lf ms\n\t\t\tbCircleEdge = %.3lf ms\n\t\t\tbSun = %.3lf\n\t\t\tbDunes = %.3lf\n\t\t\tfBloomTriangle = %.3lf ms\n\t\t\t"
            "fOutlineTriangle = %.3lf ms\n\t\t\tfForwardFaceTriangle = %.3lf ms\n\t\t\tshowImage = %.3lf ms\n\t\t\tcolorizePixel = %.3lf ms\n\t\t\ttotal = %.3lf ms\n",
-           el_initializeCanvas / 1000, el_bFill / 1000, el_bCircleEdge / 1000, el_bSun / 1000, el_fBloomTriangle / 1000, el_fOutlineTriangle / 1000,
+           el_initializeCanvas / 1000, el_bFill / 1000, el_bCircleEdge / 1000, el_bSun / 1000, el_bDunes / 1000, el_fBloomTriangle / 1000,
+           el_fOutlineTriangle / 1000,
            el_fForwardFaceTriangle / 1000, el_showImage / 1000, el_colorizePixel / 1000, el_total);
     fflush(stdout);
     system("pause");
