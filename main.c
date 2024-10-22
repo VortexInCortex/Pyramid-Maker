@@ -141,6 +141,15 @@ void showImage(struct pixel canvas[41][156]) {
     el_showImage = getElapsedTimeInMicroseconds();
 }
 
+void fRemoveRedHashtags(struct pixel canvas[41][156]) {
+    for (int j = 0; j < 41; j++) {
+        for (int i = 0; i < 156; i++) {
+            if (canvas[j][i].symbol == '#' && canvas[j][i].bRGB == 0b1100)
+                canvas[j][i].symbol = ' ';
+        }
+    }
+}
+
 typedef struct {
     int x;
     int y;
@@ -175,7 +184,7 @@ void fForwardFaceTriangle(struct pixel canvas[41][156], int iheight) {
                         if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
                             || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
                             canvas[j][i].symbol = 'I';
-                            canvas[j][i].bRGB = 0b1111;
+                            canvas[j][i].bRGB = 0b0111;
                         } else if ((i + (j % 3) * 3) % 9 == 0) {
                             canvas[j][i].symbol = 'I';
                             canvas[j][i].bRGB = 0b0111;
@@ -196,7 +205,7 @@ void fForwardFaceTriangle(struct pixel canvas[41][156], int iheight) {
                             canvas[j][i].bRGB = 0b0110;
                         } else {
                             canvas[j][i].symbol = '#';
-                            canvas[j][i].bRGB = 0b1110;
+                            canvas[j][i].bRGB = 0b0110;
                         }
                     }
                 }
@@ -302,8 +311,34 @@ void fBloomTriangle(struct pixel canvas[41][156], int iheight) {
     el_fBloomTriangle = getElapsedTimeInMicroseconds();
 }
 
+int sin(int x) {
+    int sinTable[] = {
+        0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 0, -1, -1, -1, -2, -2, -2, -2, -2, -3, -3, -3, -3, -3, -3, -3, -3, -2, -2, -2,
+        -2, -1, -1, -1, 0
+    };
+    return sinTable[(sizeof(sinTable) / 4 - x) % (sizeof(sinTable) / 4)];
+}
+
 void bDunes(struct pixel canvas[41][156], int iheight) {
     startTimer();
+
+    int randomArray[16];
+    int rand = randomArray[0] + randomArray[1] + randomArray[2] + randomArray[3] + randomArray[4] + randomArray[5] + randomArray[6] + randomArray[7] +
+               randomArray[8] + randomArray[9] + randomArray[10] + randomArray[11] + randomArray[12] + randomArray[13] + randomArray[14] + randomArray[15];
+
+    int offset = rand % 6;
+    int baseheight = 20 - (33 - iheight) / 2 - rand % 2;
+    for (int j = 38 + (39 - iheight) / 12; j > 10; j--) {
+        for (int i = 0; i < 156; i++) {
+            if (j >= 41 - (baseheight + sin(i))) {
+                canvas[j][i + offset].symbol = '`';
+                canvas[j][i + offset].bRGB = 0b1111;
+                // for (int k = j + 1; k < 41; k++) {
+                //     canvas[k][i + offset].symbol = ' '; //SIMPLER DUNES IF I USE THIS CODE
+                // }
+            }
+        }
+    }
 
     stopTimer();
     el_bDunes = getElapsedTimeInMicroseconds();
@@ -332,18 +367,28 @@ void bSun(struct pixel canvas[41][156], int iheight) {
 void bCircleEdge(struct pixel canvas[41][156]) {
     startTimer();
 
+#define  hashGauche = (canvas[j][i - 1].symbol == ' ' && canvas[j][i - 1].bRGB == 0b1100)
+#define  hashDroite = (canvas[j][i + 1].symbol == ' ' && canvas[j][i + 1].bRGB == 0b1100)
+#define  hashHaut   = (canvas[j-1][i].symbol == ' ' && canvas[j-1][i].bRGB == 0b1100)
+#define  hashBas    = (canvas[j+1][i].symbol == ' ' && canvas[j+1][i].bRGB == 0b1100)
+#define  hashPos    = (canvas[j][i].symbol == ' ' && canvas[j][i].bRGB == 0b1100)
+
     for (int j = 0; j < 41; j++) {
         for (int i = 0; i < 156; i++) {
             if (i < 78) {
-                if ((canvas[j][i + 1].symbol == '#' && canvas[j][i].symbol != '#') ||
-                    (canvas[j + 1][i].symbol == '#' && canvas[j - 1][i].symbol != '(' && canvas[j - 1][i].symbol != '#' && canvas[j][i - 1].symbol != '#' &&
-                     canvas[j][i].symbol != '#')) {
+                if (((canvas[j][i + 1].symbol == ' ' && canvas[j][i + 1].bRGB == 0b1100) && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b1100)) ||
+                    ((canvas[j + 1][i].symbol == ' ' && canvas[j + 1][i].bRGB == 0b1100) && canvas[j - 1][i].symbol != '('
+                     && (canvas[j - 1][i].symbol != ' ' && canvas[j - 1][i].bRGB != 0b1100)
+                     && (canvas[j][i - 1].symbol != ' ' && canvas[j][i - 1].bRGB != 0b1100)
+                     && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b1100))) {
                     canvas[j][i].symbol = '(';
                     canvas[j][i].bRGB = 0b1000;
                 }
-            } else if ((canvas[j][i].symbol != '#' && canvas[j][i - 1].symbol == '#') ||
-                       (canvas[j + 1][i].symbol == '#' && canvas[j - 1][i].symbol != ')' && canvas[j - 1][i].symbol != '#' && canvas[j][i + 1].symbol != '#' &&
-                        canvas[j][i].symbol != '#')) {
+            } else if (((canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b1100) && (canvas[j][i - 1].symbol == ' ' && canvas[j][i - 1].bRGB == 0b1100)) ||
+                       ((canvas[j + 1][i].symbol == ' ' && canvas[j + 1][i].bRGB == 0b1100) && canvas[j - 1][i].symbol != ')'
+                        && (canvas[j - 1][i].symbol != ' ' && canvas[j - 1][i].bRGB != 0b1100)
+                        && (canvas[j][i + 1].symbol != ' ' && canvas[j][i + 1].bRGB != 0b1100)
+                        && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b1100))) {
                 canvas[j][i].symbol = ')';
                 canvas[j][i].bRGB = 0b1000;
             }
@@ -386,7 +431,7 @@ void initializeCanvas(struct pixel canvas[41][156]) {
 
     for (int i = 0; i < 156; i++) {
         for (int j = 0; j < 41; j++) {
-            canvas[j][i].symbol = '#';
+            canvas[j][i].symbol = ' ';
             canvas[j][i].bRGB = 0b1100;
         }
     }
@@ -417,6 +462,7 @@ void drawOutput(int iheight) {
                 fBloomTriangle(canvas, iheight);
                 fOutlineTriangle(canvas, iheight);
                 fForwardFaceTriangle(canvas, iheight);
+                fRemoveRedHashtags(canvas);
                 adjustFrameRate(targetFrameRate);
                 showImage(canvas);
                 break;
