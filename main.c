@@ -142,12 +142,12 @@ void showImage(struct pixel canvas[41][156]) {
 }
 
 void fRemoveRedHashtags(struct pixel canvas[41][156]) {
-    for (int j = 0; j < 41; j++) {
-        for (int i = 0; i < 156; i++) {
-            if (canvas[j][i].symbol == '#' && canvas[j][i].bRGB == 0b1100)
-                canvas[j][i].symbol = ' ';
-        }
-    }
+    // for (int j = 0; j < 41; j++) {
+    //     for (int i = 0; i < 156; i++) {
+    //         if (canvas[j][i].symbol == '#' && canvas[j][i].bRGB == 0b0011)
+    //             canvas[j][i].symbol = ' ';
+    //     }
+    // }
 }
 
 typedef struct {
@@ -333,9 +333,9 @@ void bDunes(struct pixel canvas[41][156], int iheight) {
             if (j >= 41 - (baseheight + sin(i))) {
                 canvas[j][i + offset].symbol = '`';
                 canvas[j][i + offset].bRGB = 0b1111;
-                // for (int k = j + 1; k < 41; k++) {
-                //     canvas[k][i + offset].symbol = ' '; //SIMPLER DUNES IF I USE THIS CODE
-                // }
+                for (int k = j + 1; k < 41; k++) {
+                    canvas[k][i + offset].symbol = ' '; //SIMPLER DUNES IF I USE THIS CODE
+                }
             }
         }
     }
@@ -367,28 +367,28 @@ void bSun(struct pixel canvas[41][156], int iheight) {
 void bCircleEdge(struct pixel canvas[41][156]) {
     startTimer();
 
-#define  hashGauche = (canvas[j][i - 1].symbol == ' ' && canvas[j][i - 1].bRGB == 0b1100)
-#define  hashDroite = (canvas[j][i + 1].symbol == ' ' && canvas[j][i + 1].bRGB == 0b1100)
-#define  hashHaut   = (canvas[j-1][i].symbol == ' ' && canvas[j-1][i].bRGB == 0b1100)
-#define  hashBas    = (canvas[j+1][i].symbol == ' ' && canvas[j+1][i].bRGB == 0b1100)
-#define  hashPos    = (canvas[j][i].symbol == ' ' && canvas[j][i].bRGB == 0b1100)
+#define  hashGauche = (canvas[j][i - 1].symbol == ' ' && canvas[j][i - 1].bRGB ==  0b0011)
+#define  hashDroite = (canvas[j][i + 1].symbol == ' ' && canvas[j][i + 1].bRGB ==  0b0011)
+#define  hashHaut   = (canvas[j-1][i].symbol == ' ' && canvas[j-1][i].bRGB ==  0b0011)
+#define  hashBas    = (canvas[j+1][i].symbol == ' ' && canvas[j+1][i].bRGB ==  0b0011)
+#define  hashPos    = (canvas[j][i].symbol == ' ' && canvas[j][i].bRGB ==  0b0011)
 
     for (int j = 0; j < 41; j++) {
         for (int i = 0; i < 156; i++) {
             if (i < 78) {
-                if (((canvas[j][i + 1].symbol == ' ' && canvas[j][i + 1].bRGB == 0b1100) && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b1100)) ||
-                    ((canvas[j + 1][i].symbol == ' ' && canvas[j + 1][i].bRGB == 0b1100) && canvas[j - 1][i].symbol != '('
-                     && (canvas[j - 1][i].symbol != ' ' && canvas[j - 1][i].bRGB != 0b1100)
-                     && (canvas[j][i - 1].symbol != ' ' && canvas[j][i - 1].bRGB != 0b1100)
-                     && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b1100))) {
+                if (((canvas[j][i + 1].symbol == ' ' && canvas[j][i + 1].bRGB == 0b0011) && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b0011)) ||
+                    ((canvas[j + 1][i].symbol == ' ' && canvas[j + 1][i].bRGB == 0b0011) && canvas[j - 1][i].symbol != '('
+                     && (canvas[j - 1][i].symbol != ' ' && canvas[j - 1][i].bRGB != 0b0011)
+                     && (canvas[j][i - 1].symbol != ' ' && canvas[j][i - 1].bRGB != 0b0011)
+                     && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b0011))) {
                     canvas[j][i].symbol = '(';
                     canvas[j][i].bRGB = 0b1000;
                 }
-            } else if (((canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b1100) && (canvas[j][i - 1].symbol == ' ' && canvas[j][i - 1].bRGB == 0b1100)) ||
-                       ((canvas[j + 1][i].symbol == ' ' && canvas[j + 1][i].bRGB == 0b1100) && canvas[j - 1][i].symbol != ')'
-                        && (canvas[j - 1][i].symbol != ' ' && canvas[j - 1][i].bRGB != 0b1100)
-                        && (canvas[j][i + 1].symbol != ' ' && canvas[j][i + 1].bRGB != 0b1100)
-                        && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b1100))) {
+            } else if (((canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b0011) && (canvas[j][i - 1].symbol == ' ' && canvas[j][i - 1].bRGB == 0b0011)) ||
+                       ((canvas[j + 1][i].symbol == ' ' && canvas[j + 1][i].bRGB == 0b0011) && canvas[j - 1][i].symbol != ')'
+                        && (canvas[j - 1][i].symbol != ' ' && canvas[j - 1][i].bRGB != 0b0011)
+                        && (canvas[j][i + 1].symbol != ' ' && canvas[j][i + 1].bRGB != 0b0011)
+                        && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b0011))) {
                 canvas[j][i].symbol = ')';
                 canvas[j][i].bRGB = 0b1000;
             }
@@ -405,7 +405,7 @@ void bFill(struct pixel canvas[41][156], int iheight) {
 
     startTimer();
 
-    for (int j = 0; j < 41; j++) {
+    for (int j = 0; j < 38; j++) {
         for (int i = 0; i < 156; i++) {
             int iFromOrigin = i - 78;
             int jFromOrigin = j * (5 / 2) - (41 - iheight) * (5 / 2);
@@ -421,6 +421,16 @@ void bFill(struct pixel canvas[41][156], int iheight) {
             }
         }
     }
+    for (int j = 38; j < 41; j++) {
+        for (int i = 0; i < 156; i++) {
+            if ((i + (j % 3) * 2) % 4 == 0)
+                canvas[j][i].symbol = '_';
+            else
+                canvas[j][i].symbol = ' ';
+            canvas[j][i].bRGB = 0b1000;
+        }
+    }
+
 
     stopTimer();
     el_bFill = getElapsedTimeInMicroseconds();
@@ -432,7 +442,7 @@ void initializeCanvas(struct pixel canvas[41][156]) {
     for (int i = 0; i < 156; i++) {
         for (int j = 0; j < 41; j++) {
             canvas[j][i].symbol = ' ';
-            canvas[j][i].bRGB = 0b1100;
+            canvas[j][i].bRGB = 0b0011;
         }
     }
 
