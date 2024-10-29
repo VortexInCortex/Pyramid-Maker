@@ -139,20 +139,71 @@ typedef struct {
     int y;
 } Point;
 
-float triangleArea(Point p1, Point p2, Point p3) {
-    return 0.5 * abs(p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y));
+void sortVerticesByY(Point *A, Point *B, Point *C) {
+    Point tmp;
+    if (A->y > B->y) {
+        tmp = *A;
+        *A = *B;
+        *B = tmp;
+    }
+    if (B->y > C->y) {
+        tmp = *B;
+        *B = *C;
+        *C = tmp;
+    }
+    if (A->y > C->y) {
+        tmp = *A;
+        *A = *C;
+        *C = tmp;
+    }
 }
 
-void debugTriangleArea(Point A, Point B, Point C) {
-    // Calculate the area of the triangle
-    float area = triangleArea(A, B, C);
+void fillFlatSideTriangle(Point v1, Point v2, Point v3, struct pixel canvas[41][156]) {
+    // Assuming v1.y == v2.y or v2.y == v3.y, fill triangle line-by-line between v1 and v3
+    float slope1 = (float) (v3.x - v1.x) / (v3.y - v1.y);
+    float slope2 = (float) (v3.x - v2.x) / (v3.y - v2.y);
 
-    // Command to open a new command prompt and display the area
-    char command[256];
-    snprintf(command, sizeof(command), "start cmd /k echo Area of the triangle: %.2f && pause", area);
+    for (int y = v1.y; y <= v3.y; y++) {
+        int startX = v1.x + (int) (slope1 * (y - v1.y));
+        int endX = v2.x + (int) (slope2 * (y - v2.y));
 
-    // Execute the command
-    system(command);
+        if (startX > endX) {
+            int tmp = startX;
+            startX = endX;
+            endX = tmp;
+        }
+
+        for (int x = startX; x <= endX; x++) {
+            if (j > (41 - iheight + iheight / 10)) {
+                if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
+                    || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
+                    canvas[j][i].symbol = 'I';
+                    canvas[j][i].bRGB = 0b0111;
+                } else if ((i + (j % 3) * 3) % 9 == 0) {
+                    canvas[j][i].symbol = 'I';
+                    canvas[j][i].bRGB = 0b0111;
+                } else {
+                    canvas[j][i].symbol = '_';
+                    canvas[j][i].bRGB = 0b0111;
+                }
+            } else if (j == 41 - iheight) {
+                canvas[j][i].symbol = '^';
+                canvas[j][i].bRGB = 0b1110;
+            } else {
+                if (canvas[j][i - 3].symbol == '>' || (canvas[j][i - 3].symbol == '\\' /*&& canvas[j][i - 3].bRGB == '0b1110'// WHY THIS CHECK*/) ||
+                    canvas[j][i + 3].symbol == '<' || (canvas[j][i + 3].symbol == '/' /*&& canvas[j][i + 3].bRGB == '0b1110'//FAIL?*/)) {
+                    if (i < 78)
+                        canvas[j][i].symbol = '/';
+                    else
+                        canvas[j][i].symbol = '\\';
+                    canvas[j][i].bRGB = 0b1110;
+                } else {
+                    canvas[j][i].symbol = '#';
+                    canvas[j][i].bRGB = 0b1110;
+                }
+            }
+        }
+    }
 }
 
 void fFrontFaceTriangle(struct pixel canvas[41][156], int iheight, unsigned int frameCounter) {
@@ -163,13 +214,11 @@ void fFrontFaceTriangle(struct pixel canvas[41][156], int iheight, unsigned int 
     Point B = {78 - (iheight * 2), 41};
     Point C = {78 + (iheight * 2) - (frameCounter * 4), 41};
 
-    //debugTriangleArea(A, B, C);
-
     // Calculate total area of triangle specified by vertices
     float areaOrig = triangleArea(A, B, C);
     for (int j = 0; j < 41; j++) {
         for (int i = 0; i < 156; i++) {
-            if (j > (A.y - 1 - (10 / iheight)) && i > B.x && i < C.x) {
+            if ((j >= (A.y - (10 / iheight)) && j <= (B.y + (10 / iheight))) && (i >= B.x && i <= C.x)) {
                 Point P = {i, j}; // Current pixel's coordinate
 
                 float area1 = triangleArea(P, B, C);
@@ -178,34 +227,6 @@ void fFrontFaceTriangle(struct pixel canvas[41][156], int iheight, unsigned int 
 
                 // Is point inside triangle?
                 if (area1 + area2 + area3 <= areaOrig) {
-                    if (j > (41 - iheight + iheight / 10)) {
-                        if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
-                            || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
-                            canvas[j][i].symbol = 'I';
-                            canvas[j][i].bRGB = 0b0111;
-                        } else if ((i + (j % 3) * 3) % 9 == 0) {
-                            canvas[j][i].symbol = 'I';
-                            canvas[j][i].bRGB = 0b0111;
-                        } else {
-                            canvas[j][i].symbol = '_';
-                            canvas[j][i].bRGB = 0b0111;
-                        }
-                    } else if (j == 41 - iheight) {
-                        canvas[j][i].symbol = '^';
-                        canvas[j][i].bRGB = 0b1110;
-                    } else {
-                        if (canvas[j][i - 3].symbol == '>' || (canvas[j][i - 3].symbol == '\\' /*&& canvas[j][i - 3].bRGB == '0b1110'// WHY THIS CHECK*/) ||
-                            canvas[j][i + 3].symbol == '<' || (canvas[j][i + 3].symbol == '/' /*&& canvas[j][i + 3].bRGB == '0b1110'//FAIL?*/)) {
-                            if (i < 78)
-                                canvas[j][i].symbol = '/';
-                            else
-                                canvas[j][i].symbol = '\\';
-                            canvas[j][i].bRGB = 0b1110;
-                        } else {
-                            canvas[j][i].symbol = '#';
-                            canvas[j][i].bRGB = 0b1110;
-                        }
-                    }
                 }
             }
         }
@@ -568,7 +589,7 @@ void initializeCanvas(struct pixel canvas[41][156]) {
 
 void drawOutput(int iheight) {
     struct pixel canvas[41][156] = {}; //156x41 = pixel position
-    unsigned int frameCounter = 11; //Aiming for 16 total frames at 4 fps, for a total of 4 seconds of run time
+    unsigned int frameCounter = 0; //Aiming for 16 total frames at 4 fps, for a total of 4 seconds of run time
     float targetFrameRate = 3.0f;
 
     initializeCanvas(canvas);
@@ -590,7 +611,7 @@ void drawOutput(int iheight) {
         fFrontFaceTriangle(canvas, iheight, frameCounter);
         adjustFrameRate(targetFrameRate);
         showImage(canvas);
-        //frameCounter++;
+        frameCounter++;
     }
 }
 
