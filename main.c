@@ -139,68 +139,150 @@ typedef struct {
     int y;
 } Point;
 
-void sortVerticesByY(Point *A, Point *B, Point *C) {
-    Point tmp;
-    if (A->y > B->y) {
-        tmp = *A;
-        *A = *B;
-        *B = tmp;
-    }
-    if (B->y > C->y) {
-        tmp = *B;
-        *B = *C;
-        *C = tmp;
-    }
-    if (A->y > C->y) {
-        tmp = *A;
-        *A = *C;
-        *C = tmp;
+void frontFaceIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
+    if (j > (41 - iheight + iheight / 10)) {
+        if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
+            || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
+            canvas[j][i].symbol = 'I';
+            canvas[j][i].bRGB = 0b0111;
+        } else if ((i + (j % 3) * 3) % 9 == 0) {
+            canvas[j][i].symbol = 'I';
+            canvas[j][i].bRGB = 0b0111;
+        } else {
+            canvas[j][i].symbol = '_';
+            canvas[j][i].bRGB = 0b0111;
+        }
+    } else if (j == 41 - iheight) {
+        canvas[j][i].symbol = '^';
+        canvas[j][i].bRGB = 0b1110;
+    } else {
+        if (canvas[j][i - 3].symbol == '>' || (canvas[j][i - 3].symbol == '\\' /*&& canvas[j][i - 3].bRGB == '0b1110'// WHY THIS CHECK*/) ||
+            canvas[j][i + 3].symbol == '<' || (canvas[j][i + 3].symbol == '/' /*&& canvas[j][i + 3].bRGB == '0b1110'//FAIL?*/)) {
+            if (i < 78)
+                canvas[j][i].symbol = '/';
+            else
+                canvas[j][i].symbol = '\\';
+            canvas[j][i].bRGB = 0b1110;
+        } else {
+            canvas[j][i].symbol = '#';
+            canvas[j][i].bRGB = 0b1110;
+        }
     }
 }
 
-void fillFlatSideTriangle(Point v1, Point v2, Point v3, struct pixel canvas[41][156]) {
-    // Assuming v1.y == v2.y or v2.y == v3.y, fill triangle line-by-line between v1 and v3
-    float slope1 = (float) (v3.x - v1.x) / (v3.y - v1.y);
-    float slope2 = (float) (v3.x - v2.x) / (v3.y - v2.y);
-
-    for (int y = v1.y; y <= v3.y; y++) {
-        int startX = v1.x + (int) (slope1 * (y - v1.y));
-        int endX = v2.x + (int) (slope2 * (y - v2.y));
-
-        if (startX > endX) {
-            int tmp = startX;
-            startX = endX;
-            endX = tmp;
+void sideFaceIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
+    if (j > (41 - iheight + iheight / 10)) {
+        if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
+            || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
+            canvas[j][i].symbol = 'I';
+            canvas[j][i].bRGB = 0b0101;
+        } else if ((i + (j % 3) * 3) % 9 == 0) {
+            canvas[j][i].symbol = 'I';
+            canvas[j][i].bRGB = 0b0101;
+        } else {
+            canvas[j][i].symbol = '_';
+            canvas[j][i].bRGB = 0b0101;
         }
+    } else if (j == 41 - iheight) {
+        canvas[j][i].symbol = '^';
+        canvas[j][i].bRGB = 0b1101;
+    } else {
+        if (canvas[j][i - 3].symbol == '>' || (canvas[j][i - 3].symbol == '\\' /*&& canvas[j][i - 3].bRGB == '0b1110'// WHY THIS CHECK*/) ||
+            canvas[j][i + 3].symbol == '<' || (canvas[j][i + 3].symbol == '/' /*&& canvas[j][i + 3].bRGB == '0b1110'//FAIL?*/)) {
+            if (i < 78)
+                canvas[j][i].symbol = '/';
+            else
+                canvas[j][i].symbol = '\\';
+            canvas[j][i].bRGB = 0b1101;
+        } else {
+            canvas[j][i].symbol = '#';
+            canvas[j][i].bRGB = 0b1101;
+        }
+    }
+}
 
-        for (int x = startX; x <= endX; x++) {
-            if (j > (41 - iheight + iheight / 10)) {
-                if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
-                    || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
-                    canvas[j][i].symbol = 'I';
-                    canvas[j][i].bRGB = 0b0111;
-                } else if ((i + (j % 3) * 3) % 9 == 0) {
-                    canvas[j][i].symbol = 'I';
-                    canvas[j][i].bRGB = 0b0111;
-                } else {
-                    canvas[j][i].symbol = '_';
-                    canvas[j][i].bRGB = 0b0111;
-                }
-            } else if (j == 41 - iheight) {
-                canvas[j][i].symbol = '^';
-                canvas[j][i].bRGB = 0b1110;
-            } else {
-                if (canvas[j][i - 3].symbol == '>' || (canvas[j][i - 3].symbol == '\\' /*&& canvas[j][i - 3].bRGB == '0b1110'// WHY THIS CHECK*/) ||
-                    canvas[j][i + 3].symbol == '<' || (canvas[j][i + 3].symbol == '/' /*&& canvas[j][i + 3].bRGB == '0b1110'//FAIL?*/)) {
-                    if (i < 78)
-                        canvas[j][i].symbol = '/';
-                    else
-                        canvas[j][i].symbol = '\\';
-                    canvas[j][i].bRGB = 0b1110;
-                } else {
-                    canvas[j][i].symbol = '#';
-                    canvas[j][i].bRGB = 0b1110;
-                }
+void backFaceIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
+    if (j > (41 - iheight + iheight / 10)) {
+        if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
+            || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
+            canvas[j][i].symbol = 'I';
+            canvas[j][i].bRGB = 0b0001;
+        } else if ((i + (j % 3) * 3) % 9 == 0) {
+            canvas[j][i].symbol = 'I';
+            canvas[j][i].bRGB = 0b0001;
+        } else {
+            canvas[j][i].symbol = '_';
+            canvas[j][i].bRGB = 0b0001;
+        }
+    } else if (j == 41 - iheight) {
+        canvas[j][i].symbol = '^';
+        canvas[j][i].bRGB = 0b1001;
+    } else {
+        if (canvas[j][i - 3].symbol == '>' || (canvas[j][i - 3].symbol == '\\' /*&& canvas[j][i - 3].bRGB == '0b1110'// WHY THIS CHECK*/) ||
+            canvas[j][i + 3].symbol == '<' || (canvas[j][i + 3].symbol == '/' /*&& canvas[j][i + 3].bRGB == '0b1110'//FAIL?*/)) {
+            if (i < 78)
+                canvas[j][i].symbol = '/';
+            else
+                canvas[j][i].symbol = '\\';
+            canvas[j][i].bRGB = 0b1001;
+        } else {
+            canvas[j][i].symbol = '#';
+            canvas[j][i].bRGB = 0b1001;
+        }
+    }
+}
+
+void outlineIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
+    canvas[j][i].symbol = '*';
+    canvas[j][i].bRGB = 0b1110;
+}
+
+void bloomIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
+    if (j == 39 - iheight && i > 77) {
+        canvas[j][i].symbol = '|';
+        canvas[j][i].bRGB = 0b1110;
+    } else if (j < (42 - iheight + iheight / 10) && j != (39 - iheight))
+        if (i < 78) {
+            canvas[j][i].symbol = '\\';
+            canvas[j][i].bRGB = 0b1110;
+        } else {
+            canvas[j][i].symbol = '/';
+            canvas[j][i].bRGB = 0b1110;
+        }
+    else if (i < 78 && j != (39 - iheight)) {
+        canvas[j][i].symbol = '>';
+        canvas[j][i].bRGB = 0b1110;
+    } else if (j != (39 - iheight)) {
+        canvas[j][i].symbol = '<';
+        canvas[j][i].bRGB = 0b1110;
+    }
+}
+
+void fillTriangle(Point v1, Point v2, Point v3, struct pixel canvas[41][156], int iheight, int ifBlock) {
+    //Scanline algorithm using y=mx+b
+    float slopeLeft = (v2.y - v1.y) / (v2.x - v1.x);
+    float slopeRight = (v3.y - v2.y) / (v3.x - v2.x);
+
+    float offsetLeft = v1.y;
+    float offsetRight = v2.y - slopeRight * v2.x;
+
+    for (int j = v2.y; j < v1.y; j++) {
+        int xLeft = (j - offsetLeft) / slopeLeft;
+        int xRight = (j - offsetRight) / slopeRight;
+
+        for (int i = xLeft; i < xRight; i++) {
+            switch (ifBlock) {
+                case 0: frontFaceIfBlock(canvas, iheight, j, i);
+                    break;
+                case 1: sideFaceIfBlock(canvas, iheight, j, i);
+                    break;
+                case 2: backFaceIfBlock(canvas, iheight, j, i);
+                    break;
+                case 3: outlineIfBlock(canvas, iheight, j, i);
+                    break;
+                case 4: bloomIfBlock(canvas, iheight, j, i);
+                    break;
+                default: printf("DEBUG: BAD IF BLOCK CASE. ifBlock = %i", ifBlock);
             }
         }
     }
@@ -212,26 +294,9 @@ void fFrontFaceTriangle(struct pixel canvas[41][156], int iheight, unsigned int 
     // Vertices
     Point A = {78, 41 - iheight};
     Point B = {78 - (iheight * 2), 41};
-    Point C = {78 + (iheight * 2) - (frameCounter * 4), 41};
+    Point C = {78 + (iheight * 2) - (frameCounter * 8 / (41 - iheight)), 41};
 
-    // Calculate total area of triangle specified by vertices
-    float areaOrig = triangleArea(A, B, C);
-    for (int j = 0; j < 41; j++) {
-        for (int i = 0; i < 156; i++) {
-            if ((j >= (A.y - (10 / iheight)) && j <= (B.y + (10 / iheight))) && (i >= B.x && i <= C.x)) {
-                Point P = {i, j}; // Current pixel's coordinate
-
-                float area1 = triangleArea(P, B, C);
-                float area2 = triangleArea(A, P, C);
-                float area3 = triangleArea(A, B, P);
-
-                // Is point inside triangle?
-                if (area1 + area2 + area3 <= areaOrig) {
-                }
-            }
-        }
-    }
-
+    fillTriangle(B, A, C, canvas, iheight, 0);
 
     stopTimer();
     el_fFrontFaceTriangle = getElapsedTimeInMicroseconds();
@@ -245,52 +310,7 @@ void fSideFaceTriangle(struct pixel canvas[41][156], int iheight, unsigned int f
     Point B = {78 - (iheight * 2), 41};
     Point C = {78 + (iheight * 2), 41};
 
-    // Calculate total area of triangle specified by vertices
-    float areaOrig = triangleArea(A, B, C);
-    for (int j = 0; j < 41; j++) {
-        for (int i = 0; i < 156; i++) {
-            if (j > (A.y - 1 - (10 / iheight)) && i > B.x && i < C.x) {
-                Point P = {i, j}; // Current pixel's coordinate
-
-                float area1 = triangleArea(P, B, C);
-                float area2 = triangleArea(A, P, C);
-                float area3 = triangleArea(A, B, P);
-
-                // Is point inside triangle?
-                if (area1 + area2 + area3 <= areaOrig) {
-                    if (j > (41 - iheight + iheight / 10)) {
-                        if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
-                            || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
-                            canvas[j][i].symbol = 'I';
-                            canvas[j][i].bRGB = 0b0101;
-                        } else if ((i + (j % 3) * 3) % 9 == 0) {
-                            canvas[j][i].symbol = 'I';
-                            canvas[j][i].bRGB = 0b0101;
-                        } else {
-                            canvas[j][i].symbol = '_';
-                            canvas[j][i].bRGB = 0b0101;
-                        }
-                    } else if (j == 41 - iheight) {
-                        canvas[j][i].symbol = '^';
-                        canvas[j][i].bRGB = 0b1101;
-                    } else {
-                        if (canvas[j][i - 3].symbol == '>' || (canvas[j][i - 3].symbol == '\\' /*&& canvas[j][i - 3].bRGB == '0b1110'// WHY THIS CHECK*/) ||
-                            canvas[j][i + 3].symbol == '<' || (canvas[j][i + 3].symbol == '/' /*&& canvas[j][i + 3].bRGB == '0b1110'//FAIL?*/)) {
-                            if (i < 78)
-                                canvas[j][i].symbol = '/';
-                            else
-                                canvas[j][i].symbol = '\\';
-                            canvas[j][i].bRGB = 0b1101;
-                        } else {
-                            canvas[j][i].symbol = '#';
-                            canvas[j][i].bRGB = 0b1101;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
+    fillTriangle(B, A, C, canvas, iheight, 1);
 
     stopTimer();
     el_fSideFaceTriangle = getElapsedTimeInMicroseconds();
@@ -304,52 +324,7 @@ void fBackFaceTriangle(struct pixel canvas[41][156], int iheight) {
     Point B = {78 - (iheight * 2), 41};
     Point C = {78 + (iheight * 2), 41};
 
-    // Calculate total area of triangle specified by vertices
-    float areaOrig = triangleArea(A, B, C);
-    for (int j = 0; j < 41; j++) {
-        for (int i = 0; i < 156; i++) {
-            if (j > (A.y - 1 - (10 / iheight)) && i > B.x && i < C.x) {
-                Point P = {i, j}; // Current pixel's coordinate
-
-                float area1 = triangleArea(P, B, C);
-                float area2 = triangleArea(A, P, C);
-                float area3 = triangleArea(A, B, P);
-
-                // Is point inside triangle?
-                if (area1 + area2 + area3 <= areaOrig) {
-                    if (j > (41 - iheight + iheight / 10)) {
-                        if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
-                            || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
-                            canvas[j][i].symbol = 'I';
-                            canvas[j][i].bRGB = 0b0001;
-                        } else if ((i + (j % 3) * 3) % 9 == 0) {
-                            canvas[j][i].symbol = 'I';
-                            canvas[j][i].bRGB = 0b0001;
-                        } else {
-                            canvas[j][i].symbol = '_';
-                            canvas[j][i].bRGB = 0b0001;
-                        }
-                    } else if (j == 41 - iheight) {
-                        canvas[j][i].symbol = '^';
-                        canvas[j][i].bRGB = 0b1001;
-                    } else {
-                        if (canvas[j][i - 3].symbol == '>' || (canvas[j][i - 3].symbol == '\\' /*&& canvas[j][i - 3].bRGB == '0b1110'// WHY THIS CHECK*/) ||
-                            canvas[j][i + 3].symbol == '<' || (canvas[j][i + 3].symbol == '/' /*&& canvas[j][i + 3].bRGB == '0b1110'//FAIL?*/)) {
-                            if (i < 78)
-                                canvas[j][i].symbol = '/';
-                            else
-                                canvas[j][i].symbol = '\\';
-                            canvas[j][i].bRGB = 0b1001;
-                        } else {
-                            canvas[j][i].symbol = '#';
-                            canvas[j][i].bRGB = 0b1001;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
+    fillTriangle(B, A, C, canvas, iheight, 2);
 
     stopTimer();
     el_fBackFaceTriangle = getElapsedTimeInMicroseconds();
@@ -363,26 +338,7 @@ void fOutlineTriangle(struct pixel canvas[41][156], int iheight) {
     Point B = {78 - (iheight * 2) - 1, 40};
     Point C = {78 + (iheight * 2) + 1, 40};
 
-    // Calculate total area of triangle specified by vertices
-    float areaOrig = triangleArea(A, B, C);
-    for (int j = 0; j < 41; j++) {
-        for (int i = 0; i < 156; i++) {
-            if (j > (A.y - 1) && i > B.x && i < C.x) {
-                Point P = {i, j}; // Current pixel's coordinate
-
-                float area1 = triangleArea(P, B, C);
-                float area2 = triangleArea(A, P, C);
-                float area3 = triangleArea(A, B, P);
-
-                // Is point inside triangle?
-                if (area1 + area2 + area3 <= areaOrig) {
-                    canvas[j][i].symbol = '*';
-                    canvas[j][i].bRGB = 0b1110;
-                }
-            }
-        }
-    }
-
+    fillTriangle(B, A, C, canvas, iheight, 3);
 
     stopTimer();
     el_fOutlineTriangle = getElapsedTimeInMicroseconds();
@@ -396,53 +352,7 @@ void fBloomTriangle(struct pixel canvas[41][156], int iheight) {
     Point B = {77 - (iheight * 2) - 3, 41};
     Point C = {77 + (iheight * 2) + 3, 41};
 
-    // Calculate total area of triangle specified by vertices
-    float areaOrig = triangleArea(A, B, C);
-    for (int j = 0; j < 41; j++) {
-        for (int i = 0; i < 156; i++) {
-            if (j > (A.y - 1) && i > B.x && i < C.x) {
-                Point P = {i, j}; // Current pixel's coordinate
-
-                float area1, area2, area3 = 0;
-                if (i < 78) {
-                    area1 = triangleArea(P, B, C);
-                    area2 = triangleArea(A, P, C);
-                    area3 = triangleArea(A, B, P);
-                } else {
-                    A.x = 78;
-                    B.x = 78 - (iheight * 2) - 3;
-                    C.x = 78 + (iheight * 2) + 3;
-
-                    area1 = triangleArea(P, B, C);
-                    area2 = triangleArea(A, P, C);
-                    area3 = triangleArea(A, B, P);
-                }
-
-                // Is point inside triangle?
-                if (area1 + area2 + area3 <= areaOrig) {
-                    if (j == 39 - iheight && i > 77) {
-                        canvas[j][i].symbol = '|';
-                        canvas[j][i].bRGB = 0b1110;
-                    } else if (j < (42 - iheight + iheight / 10) && j != (39 - iheight))
-                        if (i < 78) {
-                            canvas[j][i].symbol = '\\';
-                            canvas[j][i].bRGB = 0b1110;
-                        } else {
-                            canvas[j][i].symbol = '/';
-                            canvas[j][i].bRGB = 0b1110;
-                        }
-                    else if (i < 78 && j != (39 - iheight)) {
-                        canvas[j][i].symbol = '>';
-                        canvas[j][i].bRGB = 0b1110;
-                    } else if (j != (39 - iheight)) {
-                        canvas[j][i].symbol = '<';
-                        canvas[j][i].bRGB = 0b1110;
-                    }
-                }
-            }
-        }
-    }
-
+    fillTriangle(B, A, C, canvas, iheight, 4);
 
     stopTimer();
     el_fBloomTriangle = getElapsedTimeInMicroseconds();
@@ -590,7 +500,6 @@ void initializeCanvas(struct pixel canvas[41][156]) {
 void drawOutput(int iheight) {
     struct pixel canvas[41][156] = {}; //156x41 = pixel position
     unsigned int frameCounter = 0; //Aiming for 16 total frames at 4 fps, for a total of 4 seconds of run time
-    float targetFrameRate = 3.0f;
 
     initializeCanvas(canvas);
     startTimerTotal();
@@ -609,6 +518,7 @@ void drawOutput(int iheight) {
         fBackFaceTriangle(canvas, iheight);
         fSideFaceTriangle(canvas, iheight, frameCounter);
         fFrontFaceTriangle(canvas, iheight, frameCounter);
+        float targetFrameRate = 3.0f;
         adjustFrameRate(targetFrameRate);
         showImage(canvas);
         frameCounter++;
