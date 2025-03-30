@@ -1,5 +1,5 @@
 # Description
- Simple CMD program which displays a pyramid, and spins it around!
+ Simple CMD program which displays a pyramid in ASCII, and spins it around!
 
 # Technical Challenges
  This little program leverages a big buffer of a few KB to render the whole frame at once. Also, instead of clearing the screen with system("cls"), it resets the cursor's position to the start of the frame. These two performance optimizations
