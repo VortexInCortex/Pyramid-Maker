@@ -1,0 +1,11 @@
+# CLion/CMake default build directories
+cmake-build-debug/
+cmake-build-release/
+
+# General CMake artifacts
+/build/
+CMakeFiles/
+CMakeCache.txt
+
+# JetBrains IDE configuration directory
+.idea/

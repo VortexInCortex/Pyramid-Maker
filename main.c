@@ -232,7 +232,7 @@ void backFaceIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
     }
 }
 
-void outlineIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
+void outlineIfBlock(struct pixel canvas[41][156], int j, int i) {
     canvas[j][i].symbol = '*';
     canvas[j][i].bRGB = 0b1110;
 }
@@ -260,10 +260,10 @@ void bloomIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
 
 void fillTriangle(Point v1, Point v2, Point v3, struct pixel canvas[41][156], int iheight, int ifBlock) {
     //Scanline algorithm using y=mx+b
-    float slopeLeft = (v2.y - v1.y) / (v2.x - v1.x);
-    float slopeRight = (v3.y - v2.y) / (v3.x - v2.x);
+    float slopeLeft = (v2.y * 1.0f - v1.y) / (v2.x - v1.x + 0.001f); //the 0.0001f bias is to get rid of 0 asymptote
+    float slopeRight = (v3.y * 1.0f - v2.y) / (v3.x - v2.x + 0.001f); //the 0.0001f bias is to get rid of 0 asymptote
 
-    float offsetLeft = v1.y;
+    float offsetLeft = v1.y - slopeLeft * v1.x;
     float offsetRight = v2.y - slopeRight * v2.x;
 
     for (int j = v2.y; j < v1.y; j++) {
@@ -278,7 +278,7 @@ void fillTriangle(Point v1, Point v2, Point v3, struct pixel canvas[41][156], in
                     break;
                 case 2: backFaceIfBlock(canvas, iheight, j, i);
                     break;
-                case 3: outlineIfBlock(canvas, iheight, j, i);
+                case 3: outlineIfBlock(canvas, j, i);
                     break;
                 case 4: bloomIfBlock(canvas, iheight, j, i);
                     break;
@@ -293,8 +293,16 @@ void fFrontFaceTriangle(struct pixel canvas[41][156], int iheight, unsigned int 
 
     // Vertices
     Point A = {78, 41 - iheight};
-    Point B = {78 - (iheight * 2), 41};
-    Point C = {78 + (iheight * 2) - (frameCounter * 8 / (41 - iheight)), 41};
+    Point B = {0, 41};
+    Point C = {0, 41};
+    if (frameCounter >= 18 && frameCounter < 24) {
+        B.x = 78 + (iheight * 2) - ((frameCounter % 6) * (4 * iheight + 1) / 6);
+        C.x = 78 + (iheight * 2);
+    }
+    if (frameCounter < 6) {
+        B.x = 78 - (iheight * 2);
+        C.x = 78 + (iheight * 2) - ((frameCounter % 6) * (4 * iheight + 1) / 6);
+    }
 
     fillTriangle(B, A, C, canvas, iheight, 0);
 
@@ -414,16 +422,19 @@ void bSun(struct pixel canvas[41][156], int iheight) {
 void bCircleEdge(struct pixel canvas[41][156]) {
     startTimer();
 
-#define  hashGauche = (canvas[j][i - 1].symbol == ' ' && canvas[j][i - 1].bRGB ==  0b0011)// HOW TO USE???
-#define  hashDroite = (canvas[j][i + 1].symbol == ' ' && canvas[j][i + 1].bRGB ==  0b0011)// HOW TO USE???
-#define  hashHaut   = (canvas[j-1][i].symbol == ' ' && canvas[j-1][i].bRGB ==  0b0011)// HOW TO USE???
-#define  hashBas    = (canvas[j+1][i].symbol == ' ' && canvas[j+1][i].bRGB ==  0b0011) // HOW TO USE???
-#define  hashPos    = (canvas[j][i].symbol == ' ' && canvas[j][i].bRGB ==  0b0011)// HOW TO USE???
+#define  hashGauche (canvas[j][i - 1].symbol == ' ' && canvas[j][i - 1].bRGB ==  0b0011)// HOW TO USE???
+#define  hashDroite (canvas[j][i + 1].symbol == ' ' && canvas[j][i + 1].bRGB ==  0b0011)// HOW TO USE???
+#define  hashHaut   (canvas[j-1][i].symbol == ' ' && canvas[j-1][i].bRGB ==  0b0011)// HOW TO USE???
+#define  hashBas    (canvas[j+1][i].symbol == ' ' && canvas[j+1][i].bRGB ==  0b0011) // HOW TO USE???
+#define  hashPos    (canvas[j][i].symbol == ' ' && canvas[j][i].bRGB ==  0b0011)// HOW TO USE???
+
+#define CARRE(X) ((X)*(X))
+
 
     for (int j = 0; j < 41; j++) {
         for (int i = 0; i < 156; i++) {
             if (i < 78) {
-                if (((canvas[j][i + 1].symbol == ' ' && canvas[j][i + 1].bRGB == 0b0011) && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b0011)) ||
+                if ((hashDroite && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b0011)) ||
                     ((canvas[j + 1][i].symbol == ' ' && canvas[j + 1][i].bRGB == 0b0011) && canvas[j - 1][i].symbol != '('
                      && (canvas[j - 1][i].symbol != ' ' && canvas[j - 1][i].bRGB != 0b0011) // BIG BUG, CHECKING FOR SYMBOL ALWAYS BREAKS IF STATEMENT
                      && (canvas[j][i - 1].symbol != ' ' && canvas[j][i - 1].bRGB != 0b0011)
@@ -486,6 +497,8 @@ void bFill(struct pixel canvas[41][156], int iheight) {
 void initializeCanvas(struct pixel canvas[41][156]) {
     startTimer();
 
+    fflush(stdout);
+    system("cls");
     for (int i = 0; i < 156; i++) {
         for (int j = 0; j < 41; j++) {
             canvas[j][i].symbol = ' ';
@@ -521,7 +534,10 @@ void drawOutput(int iheight) {
         float targetFrameRate = 3.0f;
         adjustFrameRate(targetFrameRate);
         showImage(canvas);
+
         frameCounter++;
+        if (frameCounter > 24)
+            frameCounter = 0;
     }
 }
 
@@ -534,7 +550,7 @@ int main(void) {
 
 
     while (1) {
-        fwrite("Veuillez saisir la hauteur de la pyramide : \n", 45, 1,stdout);
+        fwrite("Veuillez saisir la hauteur de la pyramide : \n", 46, 1,stdout);
         fflush(stdout);
         scanf("%f", &height);
 
@@ -543,7 +559,7 @@ int main(void) {
             break;
         }
 
-        fwrite("\n\t<Veuillez saisir un nombre valide et reessayer.>\n\n", 52, 1,stdout);
+        fwrite("\n\t<Veuillez saisir un nombre entre 6 et 39 et reessayer.>\n\n", 63, 1,stdout);
         fflush(stdout);
         fflush(stdin);
     }
