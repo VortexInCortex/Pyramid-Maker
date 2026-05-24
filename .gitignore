@@ -8,4 +8,5 @@ CMakeFiles/
 CMakeCache.txt
 
 # JetBrains IDE configuration directory
-.idea/
+.idea\
+/.idea
