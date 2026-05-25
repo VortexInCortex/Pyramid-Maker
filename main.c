@@ -542,7 +542,7 @@ void drawOutput(int iheight) {
     while (1) {
         startGlobalTimer = getTimeInMicroseconds();
         if (kbhit())
-            if (getch() == ' ')
+            if (getch() == ' ') // Space bar
                 break;
         fflush(stdin);
 
