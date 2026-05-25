@@ -401,13 +401,12 @@ int sin(int x) {
 void bDunes(struct pixel canvas[41][156], int iheight) {
     uint64_t start = getTimeInMicroseconds();
 
-    // I think this is a custom garbage number random number generator. I was obsessed with not using libraries when starting C.
-    int randomArray[16];
-    int rand = randomArray[0] + randomArray[1] + randomArray[2] + randomArray[3] + randomArray[4] + randomArray[5] + randomArray[6] + randomArray[7] +
-               randomArray[8] + randomArray[9] + randomArray[10] + randomArray[11] + randomArray[12] + randomArray[13] + randomArray[14] + randomArray[15];
+    int random; // Pulls number from uninitialized memory. I chose this because I wanted as few libraries as possible when I started C (and this project).
 
-    int offset = rand % 6;
-    int baseheight = 20 - (33 - iheight) / 2 - rand % 2;
+    // ReSharper disable CppLocalVariableMightNotBeInitialized
+    int offset = random % 6;
+    int baseheight = 20 - (33 - iheight) / 2 - random % 2;
+    // ReSharper restore CppLocalVariableMightNotBeInitialized
     for (int j = 38 + (39 - iheight) / 12; j > 10; j--) {
         for (int i = 0; i < 156; i++) {
             if (j >= 41 - (baseheight + sin(i))) {
