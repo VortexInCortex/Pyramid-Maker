@@ -103,7 +103,10 @@ struct pixel {
 void adjustFrameRate(float targetFrameRate) {
     endGlobalTimer = getTimeInMicroseconds();
     timeElapsedLastFrame = endGlobalTimer - startGlobalTimer;
-    usleep(1000000.0f / targetFrameRate - timeElapsedLastFrame);
+
+    useconds_t sleepTime = 1000000.0f / targetFrameRate - timeElapsedLastFrame;
+    if (!(sleepTime > 1000000.0f / targetFrameRate))
+        usleep(sleepTime);
 }
 
 void colorizePixel(char stringBuffer[], unsigned char bRGB, int j, int i) {
@@ -398,6 +401,7 @@ int sin(int x) {
 void bDunes(struct pixel canvas[41][156], int iheight) {
     uint64_t start = getTimeInMicroseconds();
 
+    // I think this is a custom garbage number random number generator. I was obsessed with not using libraries when starting C.
     int randomArray[16];
     int rand = randomArray[0] + randomArray[1] + randomArray[2] + randomArray[3] + randomArray[4] + randomArray[5] + randomArray[6] + randomArray[7] +
                randomArray[8] + randomArray[9] + randomArray[10] + randomArray[11] + randomArray[12] + randomArray[13] + randomArray[14] + randomArray[15];
