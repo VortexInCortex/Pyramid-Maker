@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <conio.h>
-#include <windows.h>
+#include <inttypes.h>
 #include <unistd.h>
+#include <stdint.h>
 
+
+#pragma region TerminalColorDefines
 #define F_BLACK "\x1b[30m"
 #define F_RED "\x1b[31m"
 #define F_GREEN "\x1b[32m"
@@ -41,35 +44,55 @@
 #define B_BRIGHTCYAN "\x1b[106m"
 #define B_BRIGHTWHITE "\x1b[107m"
 
+#pragma endregion
+// #ifdef _WIN32
+// #undef _WIN32
+// #undef __WIN32__
+// #endif
+#pragma region PrecompilerPlatformSpecificImplementation
+
+#if defined(_WIN32) || defined(__WIN32__)
+#include <windows.h>
+
+// This usleep function is rewritten here so I can debug the code for this program,
+// the weird usleep implementation in windows.h prevents the debugger from running.
+int usleep(const unsigned int usecond) {
+    LARGE_INTEGER start, counter, freq;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&start);
+
+    do {
+        QueryPerformanceCounter(&counter);
+    } while ((uint64_t) (counter.QuadPart - start.QuadPart) < (uint64_t) usecond * (uint64_t) freq.QuadPart / 1000000ULL);
+
+    return 0;
+}
+
+#else // Linux/Mac?
+#include <time.h>
+
+#endif
+
+#pragma endregion
+
+
 char buffer[40000] = {0};
-double el_initializeCanvas, el_bFill, el_bCircleEdge, el_bSun, el_bDunes, el_fBloomTriangle, el_fOutlineTriangle, el_fBackFaceTriangle, el_fSideFaceTriangle,
-        el_fFrontFaceTriangle, el_showImage, el_total, el_timeBetweenFrames = 0;
-LARGE_INTEGER start, end, freq, startTotal, endTotal;
+uint64_t startGlobalTimer, endGlobalTimer, timeInInitializeCanvas, timeInbFill, timeInbCircleEdge, timeInbSun, timeInbDunes, timeInfBloomTriangle,
+        timeInfOutlineTriangle, timeInfBackFaceTriangle, timeInfSideFaceTriangle, timeInfFrontFaceTriangle, timeInShowImage, timeElapsedLastFrame = 0;
 
-void startTimer() {
-    QueryPerformanceFrequency(&freq); // Get the frequency of the high-resolution timer
-    QueryPerformanceCounter(&start); // Get the current counter value (start time)
-}
-
-void stopTimer() {
-    QueryPerformanceCounter(&end); // Get the current counter value (end time)
-}
-
-double getElapsedTimeInMicroseconds() {
-    return (double) (end.QuadPart - start.QuadPart) * 1000000.0 / freq.QuadPart;
-}
-
-void startTimerTotal() {
-    QueryPerformanceFrequency(&freq); // Get the frequency of the high-resolution timer
-    QueryPerformanceCounter(&startTotal); // Get the current counter value (start time)
-}
-
-void stopTimerTotal() {
-    QueryPerformanceCounter(&endTotal); // Get the current counter value (end time)
-}
-
-double getElapsedTimeInMicrosecondsTotal() {
-    return (double) (endTotal.QuadPart - startTotal.QuadPart) * 1000000.0 / freq.QuadPart;
+uint64_t getTimeInMicroseconds() {
+    uint64_t timeInMicroseconds = 0;
+#if defined(_WIN32) || defined(__WIN32__)
+    LARGE_INTEGER counter, freq;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&counter);
+    timeInMicroseconds = (uint64_t) (counter.QuadPart * (1000000) / freq.QuadPart);
+#else
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    timeInMicroseconds = (uint64_t) t.tv_sec * 1000000 + (uint64_t) t.tv_nsec / 1000;
+#endif
+    return timeInMicroseconds;
 }
 
 struct pixel {
@@ -78,10 +101,9 @@ struct pixel {
 };
 
 void adjustFrameRate(float targetFrameRate) {
-    stopTimerTotal();
-    el_timeBetweenFrames = getElapsedTimeInMicrosecondsTotal();
-    usleep(1000000.0f / targetFrameRate - el_timeBetweenFrames);
-    startTimerTotal();
+    endGlobalTimer = getTimeInMicroseconds();
+    timeElapsedLastFrame = endGlobalTimer - startGlobalTimer;
+    usleep(1000000.0f / targetFrameRate - timeElapsedLastFrame);
 }
 
 void colorizePixel(char stringBuffer[], unsigned char bRGB, int j, int i) {
@@ -117,7 +139,7 @@ void colorizePixel(char stringBuffer[], unsigned char bRGB, int j, int i) {
 }
 
 void showImage(struct pixel canvas[41][156]) {
-    startTimer();
+    uint64_t start = getTimeInMicroseconds();
 
     char stringBuffer[38376] = {0};
     for (int j = 0; j < 41; j++) {
@@ -130,8 +152,8 @@ void showImage(struct pixel canvas[41][156]) {
     fwrite(stringBuffer, 38376, 1, stdout);
     fflush(stdout);
 
-    stopTimer();
-    el_showImage = getElapsedTimeInMicroseconds();
+    uint64_t end = getTimeInMicroseconds();
+    timeInShowImage = end - start;
 }
 
 typedef struct {
@@ -289,12 +311,12 @@ void fillTriangle(Point v1, Point v2, Point v3, struct pixel canvas[41][156], in
 }
 
 void fFrontFaceTriangle(struct pixel canvas[41][156], int iheight, unsigned int frameCounter) {
-    startTimer();
+    uint64_t start = getTimeInMicroseconds();
 
     // Vertices
     Point A = {78, 41 - iheight};
-    Point B = {0, 41};
-    Point C = {0, 41};
+    Point B = {0, 40};
+    Point C = {0, 40};
     if (frameCounter >= 18 && frameCounter < 24) {
         B.x = 78 + (iheight * 2) - ((frameCounter % 6) * (4 * iheight + 1) / 6);
         C.x = 78 + (iheight * 2);
@@ -306,40 +328,40 @@ void fFrontFaceTriangle(struct pixel canvas[41][156], int iheight, unsigned int 
 
     fillTriangle(B, A, C, canvas, iheight, 0);
 
-    stopTimer();
-    el_fFrontFaceTriangle = getElapsedTimeInMicroseconds();
+    uint64_t end = getTimeInMicroseconds();
+    timeInfFrontFaceTriangle = end - start;
 }
 
 void fSideFaceTriangle(struct pixel canvas[41][156], int iheight, unsigned int frameCounter) {
-    startTimer();
+    uint64_t start = getTimeInMicroseconds();
 
     // Vertices
     Point A = {78, 41 - iheight};
-    Point B = {78 - (iheight * 2), 41};
-    Point C = {78 + (iheight * 2), 41};
+    Point B = {78 - (iheight * 2), 40};
+    Point C = {78 + (iheight * 2), 40};
 
     fillTriangle(B, A, C, canvas, iheight, 1);
 
-    stopTimer();
-    el_fSideFaceTriangle = getElapsedTimeInMicroseconds();
+    uint64_t end = getTimeInMicroseconds();
+    timeInfSideFaceTriangle = end - start;
 }
 
 void fBackFaceTriangle(struct pixel canvas[41][156], int iheight) {
-    startTimer();
+    uint64_t start = getTimeInMicroseconds();
 
     // Vertices
     Point A = {78, 41 - iheight};
-    Point B = {78 - (iheight * 2), 41};
-    Point C = {78 + (iheight * 2), 41};
+    Point B = {78 - (iheight * 2), 40};
+    Point C = {78 + (iheight * 2), 40};
 
     fillTriangle(B, A, C, canvas, iheight, 2);
 
-    stopTimer();
-    el_fBackFaceTriangle = getElapsedTimeInMicroseconds();
+    uint64_t end = getTimeInMicroseconds();
+    timeInfBackFaceTriangle = end - start;
 }
 
 void fOutlineTriangle(struct pixel canvas[41][156], int iheight) {
-    startTimer();
+    uint64_t start = getTimeInMicroseconds();
 
     // Vertices
     Point A = {78, 40 - iheight};
@@ -348,22 +370,21 @@ void fOutlineTriangle(struct pixel canvas[41][156], int iheight) {
 
     fillTriangle(B, A, C, canvas, iheight, 3);
 
-    stopTimer();
-    el_fOutlineTriangle = getElapsedTimeInMicroseconds();
+    uint64_t end = getTimeInMicroseconds();
+    timeInfOutlineTriangle = end - start;
 }
 
 void fBloomTriangle(struct pixel canvas[41][156], int iheight) {
-    startTimer();
-
+    uint64_t start = getTimeInMicroseconds();
     // Vertices
     Point A = {77, 39 - iheight};
-    Point B = {77 - (iheight * 2) - 3, 41};
-    Point C = {77 + (iheight * 2) + 3, 41};
+    Point B = {77 - (iheight * 2) - 3, 40};
+    Point C = {77 + (iheight * 2) + 3, 40};
 
     fillTriangle(B, A, C, canvas, iheight, 4);
 
-    stopTimer();
-    el_fBloomTriangle = getElapsedTimeInMicroseconds();
+    uint64_t end = getTimeInMicroseconds();
+    timeInfBloomTriangle = end - start;
 }
 
 int sin(int x) {
@@ -375,7 +396,7 @@ int sin(int x) {
 }
 
 void bDunes(struct pixel canvas[41][156], int iheight) {
-    startTimer();
+    uint64_t start = getTimeInMicroseconds();
 
     int randomArray[16];
     int rand = randomArray[0] + randomArray[1] + randomArray[2] + randomArray[3] + randomArray[4] + randomArray[5] + randomArray[6] + randomArray[7] +
@@ -395,12 +416,12 @@ void bDunes(struct pixel canvas[41][156], int iheight) {
         }
     }
 
-    stopTimer();
-    el_bDunes = getElapsedTimeInMicroseconds();
+    uint64_t end = getTimeInMicroseconds();
+    timeInbDunes = end - start;
 }
 
 void bSun(struct pixel canvas[41][156], int iheight) {
-    startTimer();
+    uint64_t start = getTimeInMicroseconds();
 
     for (int j = 0; j < 41; j++) {
         for (int i = 0; i < 156; i++) {
@@ -415,12 +436,12 @@ void bSun(struct pixel canvas[41][156], int iheight) {
         }
     }
 
-    stopTimer();
-    el_bSun = getElapsedTimeInMicroseconds();
+    uint64_t end = getTimeInMicroseconds();
+    timeInbSun = end - start;
 }
 
 void bCircleEdge(struct pixel canvas[41][156]) {
-    startTimer();
+    uint64_t start = getTimeInMicroseconds();
 
 #define  hashGauche (canvas[j][i - 1].symbol == ' ' && canvas[j][i - 1].bRGB ==  0b0011)// HOW TO USE???
 #define  hashDroite (canvas[j][i + 1].symbol == ' ' && canvas[j][i + 1].bRGB ==  0b0011)// HOW TO USE???
@@ -453,15 +474,15 @@ void bCircleEdge(struct pixel canvas[41][156]) {
         }
     }
 
-    stopTimer();
-    el_bCircleEdge = getElapsedTimeInMicroseconds();
+    uint64_t end = getTimeInMicroseconds();
+    timeInbCircleEdge = end - start;
 }
 
 void bFill(struct pixel canvas[41][156], int iheight) {
     //MULTIPLY X BY RATIO TO GET ACCURATE LENGTH 5:2
     //ORIGIN IS (78,20.5)
 
-    startTimer();
+    uint64_t start = getTimeInMicroseconds();
 
     for (int j = 0; j < 38; j++) {
         for (int i = 0; i < 156; i++) {
@@ -490,12 +511,12 @@ void bFill(struct pixel canvas[41][156], int iheight) {
     }
 
 
-    stopTimer();
-    el_bFill = getElapsedTimeInMicroseconds();
+    uint64_t end = getTimeInMicroseconds();
+    timeInbFill = end - start;
 }
 
 void initializeCanvas(struct pixel canvas[41][156]) {
-    startTimer();
+    uint64_t start = getTimeInMicroseconds();
 
     fflush(stdout);
     system("cls");
@@ -506,8 +527,8 @@ void initializeCanvas(struct pixel canvas[41][156]) {
         }
     }
 
-    stopTimer();
-    el_initializeCanvas = getElapsedTimeInMicroseconds();
+    uint64_t end = getTimeInMicroseconds();
+    timeInInitializeCanvas = end - start;
 }
 
 void drawOutput(int iheight) {
@@ -515,8 +536,8 @@ void drawOutput(int iheight) {
     unsigned int frameCounter = 0; //Aiming for 16 total frames at 4 fps, for a total of 4 seconds of run time
 
     initializeCanvas(canvas);
-    startTimerTotal();
     while (1) {
+        startGlobalTimer = getTimeInMicroseconds();
         if (kbhit())
             if (getch() == ' ')
                 break;
@@ -526,14 +547,14 @@ void drawOutput(int iheight) {
         bCircleEdge(canvas);
         bSun(canvas, iheight);
         bDunes(canvas, iheight);
-        fBloomTriangle(canvas, iheight);
+        //fBloomTriangle(canvas, iheight);
         fOutlineTriangle(canvas, iheight);
         fBackFaceTriangle(canvas, iheight);
         fSideFaceTriangle(canvas, iheight, frameCounter);
         fFrontFaceTriangle(canvas, iheight, frameCounter);
-        float targetFrameRate = 3.0f;
-        adjustFrameRate(targetFrameRate);
         showImage(canvas);
+        float targetFrameRate = 4.0f;
+        adjustFrameRate(targetFrameRate);
 
         frameCounter++;
         if (frameCounter > 24)
@@ -568,13 +589,15 @@ int main(void) {
     drawOutput(iheight);
     system("cls");
 
-    el_total = (el_bFill + el_bCircleEdge + el_fBloomTriangle + el_showImage) / 1000.0f;
     printf("\x1b[97mDEBUG: ELAPSED TIME IN EACH FUNCTION :\n\t\t\t"
-           "initializeCanvas = %.3lf ms\n\t\t\tbfill = %.3lf ms\n\t\t\tbCircleEdge = %.3lf ms\n\t\t\tbSun = %.3lf\n\t\t\tbDunes = %.3lf\n\t\t\t"
-           "fBloomTriangle = %.3lf ms\n\t\t\tfOutlineTriangle = %.3lf ms\n\t\t\tfBackFaceTriangle = %.3lf ms\n\t\t\tfSideFaceTriangle = %.3lf ms\n\t\t\t"
-           "fFrontFaceTriangle = %.3lf ms\n\t\t\tshowImage = %.3lf ms\n\t\t\ttotal = %.3lf ms\n",
-           el_initializeCanvas / 1000, el_bFill / 1000, el_bCircleEdge / 1000, el_bSun / 1000, el_bDunes / 1000, el_fBloomTriangle / 1000,
-           el_fOutlineTriangle / 1000, el_fBackFaceTriangle / 1000, el_fSideFaceTriangle / 1000, el_fFrontFaceTriangle / 1000, el_showImage / 1000, el_total);
+           "initializeCanvas = %"PRIu64" \xE6s\n\t\t\tbfill = %"PRIu64" \xE6s\n\t\t\tbCircleEdge = %"PRIu64" \xE6s\n\t\t\tbSun = %"PRIu64"\n\t\t\tbDunes = %"
+           PRIu64"\n\t\t\t"
+           "fBloomTriangle = %"PRIu64" \xE6s\n\t\t\tfOutlineTriangle = %"PRIu64" \xE6s\n\t\t\tfBackFaceTriangle = %"PRIu64" \xE6s\n\t\t\tfSideFaceTriangle = %"
+           PRIu64" \xE6s\n\t\t\t"
+           "fFrontFaceTriangle = %"PRIu64" \xE6s\n\t\t\tshowImage = %"PRIu64" \xE6s\n\t\t\ttotal = % "PRIu64" \xE6s\n",
+           timeInInitializeCanvas, timeInbFill, timeInbCircleEdge, timeInbSun, timeInbDunes, timeInfBloomTriangle,
+           timeInfOutlineTriangle, timeInfBackFaceTriangle, timeInfSideFaceTriangle, timeInfFrontFaceTriangle,
+           timeInShowImage, timeElapsedLastFrame);
     fflush(stdout);
     system("pause");
     return 0;
