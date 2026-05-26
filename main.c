@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 
-#pragma region TerminalColorDefines
+#pragma region Terminal Color Defines
 #define F_BLACK "\x1b[30m"
 #define F_RED "\x1b[31m"
 #define F_GREEN "\x1b[32m"
@@ -49,7 +49,7 @@
 // #undef _WIN32
 // #undef __WIN32__
 // #endif
-#pragma region PrecompilerPlatformSpecificImplementation
+#pragma region Precompiler Platform Specific Implementation
 
 #if defined(_WIN32) || defined(__WIN32__)
 #include <windows.h>
@@ -446,34 +446,26 @@ void bSun(struct pixel canvas[41][156], int iheight) {
 void bCircleEdge(struct pixel canvas[41][156]) {
     uint64_t start = getTimeInMicroseconds();
 
-#define  hashGauche (canvas[j][i - 1].symbol == ' ' && canvas[j][i - 1].bRGB ==  0b0011)// HOW TO USE???
-#define  hashDroite (canvas[j][i + 1].symbol == ' ' && canvas[j][i + 1].bRGB ==  0b0011)// HOW TO USE???
-#define  hashHaut   (canvas[j-1][i].symbol == ' ' && canvas[j-1][i].bRGB ==  0b0011)// HOW TO USE???
-#define  hashBas    (canvas[j+1][i].symbol == ' ' && canvas[j+1][i].bRGB ==  0b0011) // HOW TO USE???
-#define  hashPos    (canvas[j][i].symbol == ' ' && canvas[j][i].bRGB ==  0b0011)// HOW TO USE???
-
-#define CARRE(X) ((X)*(X))
-
+#pragma region Pixel Isolation Check
+#define isTopRightVoid (canvas[j+1][i+2].symbol == ' ')
+#define isBotRightVoid (canvas[j-1][i+2].symbol == ' ')
+#define isTopLeftVoid  (canvas[j+1][i-2].symbol == ' ')
+#define isBotLeftVoid  (canvas[j-1][i-2].symbol == ' ')
+#define pixelIsIsolated ((canvas[j+1][i+2].symbol == ' ') || (canvas[j-1][i+2].symbol == ' ') || (canvas[j+1][i-2].symbol == ' ') || (canvas[j-1][i-2].symbol == ' '))
+#pragma endregion
 
     for (int j = 0; j < 41; j++) {
         for (int i = 0; i < 156; i++) {
-            if (i < 78) {
-                if ((hashDroite && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b0011)) ||
-                    ((canvas[j + 1][i].symbol == ' ' && canvas[j + 1][i].bRGB == 0b0011) && canvas[j - 1][i].symbol != '('
-                     && (canvas[j - 1][i].symbol != ' ' && canvas[j - 1][i].bRGB != 0b0011) // BIG BUG, CHECKING FOR SYMBOL ALWAYS BREAKS IF STATEMENT
-                     && (canvas[j][i - 1].symbol != ' ' && canvas[j][i - 1].bRGB != 0b0011)
-                     && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b0011))) {
-                    canvas[j][i].symbol = '(';
-                    canvas[j][i].bRGB = 0b1000;
+            if (canvas[j][i].symbol == '+' && pixelIsIsolated) {
+                if (i < 78) {
+                    if ((i + (j % 2) * 2) % 4 == 0)
+                        canvas[j][i].symbol = '(';
+                } else {
+                    if ((i + (j % 2) * 2) % 4 == 0)
+                        canvas[j][i].symbol = ')';
                 }
-            } else if (((canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b0011) && (canvas[j][i - 1].symbol == ' ' && canvas[j][i - 1].bRGB == 0b0011)) ||
-                       ((canvas[j + 1][i].symbol == ' ' && canvas[j + 1][i].bRGB == 0b0011) && canvas[j - 1][i].symbol != ')'
-                        && (canvas[j - 1][i].symbol != ' ' && canvas[j - 1][i].bRGB != 0b0011)
-                        && (canvas[j][i + 1].symbol != ' ' && canvas[j][i + 1].bRGB != 0b0011)
-                        && (canvas[j][i].symbol != ' ' && canvas[j][i].bRGB != 0b0011))) {
-                canvas[j][i].symbol = ')';
-                canvas[j][i].bRGB = 0b1000;
             }
+            canvas[j][i].bRGB = 0b1000;
         }
     }
 
@@ -512,7 +504,6 @@ void bFill(struct pixel canvas[41][156], int iheight) {
             canvas[j][i].bRGB = 0b1000;
         }
     }
-
 
     uint64_t end = getTimeInMicroseconds();
     timeInbFill = end - start;
