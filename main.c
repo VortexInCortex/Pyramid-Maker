@@ -105,7 +105,7 @@ void adjustFrameRate(float targetFrameRate) {
     timeElapsedLastFrame = endGlobalTimer - startGlobalTimer;
 
     useconds_t sleepTime = 1000000.0f / targetFrameRate - timeElapsedLastFrame;
-    if (!(sleepTime > 1000000.0f / targetFrameRate))
+    if (sleepTime <= 1000000.0f / targetFrameRate)
         usleep(sleepTime);
 }
 
@@ -426,10 +426,11 @@ void bDunes(struct pixel canvas[41][156], int iheight) {
 void bSun(struct pixel canvas[41][156], int iheight) {
     uint64_t start = getTimeInMicroseconds();
 
-    for (int j = 0; j < 41; j++) {
+    for (int j = 0; j < 38; j++) {
+        //TODO change magic number 38 to preserve ground floor to variable.
         for (int i = 0; i < 156; i++) {
             int iFromOrigin = i - 78;
-            int jFromOrigin = j * (5 / 2) - (41 - iheight) * (5 / 2);
+            int jFromOrigin = (float) j * 2.2f - (41.0f - (float) iheight) * 2.2f;
             int distFromOriginSquared = iFromOrigin * iFromOrigin + jFromOrigin * jFromOrigin;
 
             if (distFromOriginSquared < iheight * 20) {
@@ -475,8 +476,8 @@ void bCircleEdge(struct pixel canvas[41][156]) {
     timeInbCircleEdge = end - start;
 }
 
-void bFill(struct pixel canvas[41][156], int iheight) {
-    //MULTIPLY X BY RATIO TO GET ACCURATE LENGTH 5:2
+void bFill(struct pixel canvas[41][156], const int iheight) {
+    //MULTIPLY X BY RATIO TO GET ACCURATE LENGTH 2.2f
     //ORIGIN IS (78,20.5)
 
     uint64_t start = getTimeInMicroseconds();
@@ -484,7 +485,7 @@ void bFill(struct pixel canvas[41][156], int iheight) {
     for (int j = 0; j < 38; j++) {
         for (int i = 0; i < 156; i++) {
             int iFromOrigin = i - 78;
-            int jFromOrigin = j * (5 / 2) - (41 - iheight) * (5 / 2);
+            int jFromOrigin = (float) j * 2.2f - (41.0f - (float) iheight) * 2.2f;
             int distFromOriginSquared = iFromOrigin * iFromOrigin + jFromOrigin * jFromOrigin;
 
             if (distFromOriginSquared > iheight * 100) {
