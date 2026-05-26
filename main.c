@@ -447,11 +447,13 @@ void bCircleEdge(struct pixel canvas[41][156]) {
     uint64_t start = getTimeInMicroseconds();
 
 #pragma region Pixel Isolation Check
-#define isTopRightVoid (canvas[j+1][i+2].symbol == ' ')
-#define isBotRightVoid (canvas[j-1][i+2].symbol == ' ')
-#define isTopLeftVoid  (canvas[j+1][i-2].symbol == ' ')
-#define isBotLeftVoid  (canvas[j-1][i-2].symbol == ' ')
-#define pixelIsIsolated ((canvas[j+1][i+2].symbol == ' ') || (canvas[j-1][i+2].symbol == ' ') || (canvas[j+1][i-2].symbol == ' ') || (canvas[j-1][i-2].symbol == ' '))
+    // Out of bonds check followed by is void square check
+#define isTopRightVoid ((j+1 < 41 && i+2 < 156) && canvas[j+1][i+2].symbol == ' ')
+#define isBotRightVoid ((j-1 >= 0 && i+2 < 156) && canvas[j-1][i+2].symbol == ' ')
+#define isTopLeftVoid  ((j+1 < 41 && i-2 >= 0) && canvas[j+1][i-2].symbol == ' ')
+#define isBotLeftVoid  ((j-1 >=0 && i-2 >= 0) && canvas[j-1][i-2].symbol == ' ')
+    //
+#define pixelIsIsolated (isTopRightVoid || isBotRightVoid || isTopLeftVoid || isBotLeftVoid)
 #pragma endregion
 
     for (int j = 0; j < 41; j++) {
