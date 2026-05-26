@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <time.h>
 
 
 #pragma region Terminal Color Defines
@@ -69,7 +70,6 @@ int usleep(const unsigned int usecond) {
 }
 
 #else // Linux/Mac?
-#include <time.h>
 
 #endif
 
@@ -77,6 +77,7 @@ int usleep(const unsigned int usecond) {
 
 
 char buffer[40000] = {0};
+int randomOffset, randomDuneHeight = 0;
 uint64_t startGlobalTimer, endGlobalTimer, timeInInitializeCanvas, timeInbFill, timeInbCircleEdge, timeInbSun, timeInbDunes, timeInfBloomTriangle,
         timeInfOutlineTriangle, timeInfBackFaceTriangle, timeInfSideFaceTriangle, timeInfFrontFaceTriangle, timeInShowImage, timeElapsedLastFrame = 0;
 
@@ -391,29 +392,28 @@ void fBloomTriangle(struct pixel canvas[41][156], int iheight) {
 }
 
 int sin(int x) {
+    // the width of the canvas is 156, and the size of the sin table is 52, to ensure proper tiling, must modulo x by width of this array.
+    x %= 52;
+
+    // size of array is 52 because 156/3 = 52.
     int sinTable[] = {
-        0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 0, -1, -1, -1, -2, -2, -2, -2, -2, -3, -3, -3, -3, -3, -3, -3, -3, -2, -2, -2,
-        -2, -1, -1, -1, 0
+        0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 0, 0, 0, -1, -1, -1, -2, -2, -2, -2, -3, -3, -3, -3, -3, -3, -2, -2, -2, -2, -1,
+        -1, -1, -1, -1, -1, -1, 0, 0
     };
-    return sinTable[(sizeof(sinTable) / 4 - x) % (sizeof(sinTable) / 4)];
+    return sinTable[x];
 }
 
-void bDunes(struct pixel canvas[41][156], int iheight) {
+void bDunes(struct pixel canvas[41][156]) {
     uint64_t start = getTimeInMicroseconds();
 
-    int random; // Pulls number from uninitialized memory. I chose this because I wanted as few libraries as possible when I started C (and this project).
-
-    // ReSharper disable CppLocalVariableMightNotBeInitialized
-    int offset = random % 6;
-    int baseheight = 20 - (33 - iheight) / 2 - random % 2;
-    // ReSharper restore CppLocalVariableMightNotBeInitialized
-    for (int j = 38 + (39 - iheight) / 12; j > 10; j--) {
+    //It's impossible to render a dune @ j > 10 pixels with our current math.
+    for (int j = 37; j > 10; j--) {
         for (int i = 0; i < 156; i++) {
-            if (j >= 41 - (baseheight + sin(i))) {
-                canvas[j][i + offset].symbol = '`';
-                canvas[j][i + offset].bRGB = 0b1111;
-                for (int k = j + 1; k < 41; k++) {
-                    canvas[k][i + offset].symbol = ' '; //SIMPLER DUNES IF I USE THIS CODE
+            if (j >= 41 - (randomDuneHeight + sin(i + randomOffset)) && j < 38) {
+                canvas[j][i].symbol = '`';
+                canvas[j][i].bRGB = 0b1111;
+                for (int k = j + 1; k < 38; k++) {
+                    canvas[k][i].symbol = ' ';
                 }
             }
         }
@@ -429,11 +429,11 @@ void bSun(struct pixel canvas[41][156], int iheight) {
     for (int j = 0; j < 38; j++) {
         //TODO change magic number 38 to preserve ground floor to variable.
         for (int i = 0; i < 156; i++) {
-            int iFromOrigin = i - 78;
-            int jFromOrigin = (float) j * 2.2f - (41.0f - (float) iheight) * 2.2f;
-            int distFromOriginSquared = iFromOrigin * iFromOrigin + jFromOrigin * jFromOrigin;
+            float iFromOrigin = i - 78;
+            float jFromOrigin = (float) j * 2.2f - (41.0f - (float) iheight) * 2.2f;
+            float distFromOriginSquared = iFromOrigin * iFromOrigin + jFromOrigin * jFromOrigin;
 
-            if (distFromOriginSquared < iheight * 20) {
+            if (distFromOriginSquared < (float) iheight * 20) {
                 canvas[j][i].symbol = 'O';
                 canvas[j][i].bRGB = 0b1111;
             }
@@ -533,6 +533,10 @@ void drawOutput(int iheight) {
     unsigned int frameCounter = 0; //Aiming for 16 total frames at 4 fps, for a total of 4 seconds of run time
 
     initializeCanvas(canvas);
+    srand(time(NULL));
+    randomOffset = rand() % 52; // Size of sin array is 52, so we can offset by up to 51.
+    randomDuneHeight = 20 - (33 - iheight) / 2 + (rand() % 4);
+
     while (1) {
         startGlobalTimer = getTimeInMicroseconds();
         if (kbhit())
@@ -543,7 +547,7 @@ void drawOutput(int iheight) {
         bFill(canvas, iheight);
         bCircleEdge(canvas);
         bSun(canvas, iheight);
-        bDunes(canvas, iheight);
+        bDunes(canvas);
         //fBloomTriangle(canvas, iheight);
         fOutlineTriangle(canvas, iheight);
         fBackFaceTriangle(canvas, iheight);
@@ -565,7 +569,6 @@ int main(void) {
 
     float height = 0;
     int iheight = 0;
-
 
     while (1) {
         fwrite("Veuillez saisir la hauteur de la pyramide : \n", 46, 1,stdout);
