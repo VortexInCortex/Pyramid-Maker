@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.29)
-project(test C)
+project(Pyramid C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(test main.c)
+add_executable(Pyramid main.c)
