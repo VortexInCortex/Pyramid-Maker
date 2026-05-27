@@ -13,5 +13,5 @@ This little program leverages a big buffer of a few KB to render the whole frame
 cursor's position to the start of the frame. These two performance optimizations
 turned the program from a sluggish and choppy animation to one that displays properly!<br>
 <br>
-To also note, this program had to apply basic rasterization techniques to transform shapes we can easily draw with mathematical equations to an image on a
-screen.
+To also note, this program applies basic rasterization techniques to transform the 3d pyramid to an image on a
+screen with the help of a triangle edge function for each face, excluding the base.
