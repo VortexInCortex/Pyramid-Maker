@@ -56,8 +56,6 @@
 #if defined(_WIN32) || defined(__WIN32__)
 #include <windows.h>
 
-// This usleep function is rewritten here so I can debug the code for this program,
-// the weird usleep implementation in windows.h prevents the debugger from running.
 int usleep(const unsigned int usecond) {
     LARGE_INTEGER start, counter, freq;
     QueryPerformanceFrequency(&freq);
@@ -71,6 +69,9 @@ int usleep(const unsigned int usecond) {
 }
 
 #else // Linux/Mac?
+#include <stdlib.h>
+#define min __min
+#define max __max
 
 #endif
 
@@ -79,11 +80,9 @@ int usleep(const unsigned int usecond) {
 
 char buffer[40000] = {0};
 int randomOffset = 0, randomDuneHeight = 0;
-uint64_t startGlobalTimer = 0, endGlobalTimer = 0, timeInInitializeCanvas = 0, timeInBackgroundFill = 0, timeInBackgroundCircleEdge = 0, timeInBackgroundSun = 0
-        ,
-        timeInBackgroundDunes = 0,
-        timeDrawingPyramid = 0, timeInfBloomTriangle = 0, timeInfOutlineTriangle = 0, timeInfBackFaceTriangle = 0, timeInfSideFaceTriangle = 0,
-        timeInfFrontFaceTriangle = 0, timeInShowImage = 0, timeElapsedLastFrame = 0;
+uint64_t startGlobalTimer = 0, endGlobalTimer = 0, timeInInitializeCanvas = 0, timeInBackgroundFill = 0, timeInBackgroundCircleEdge = 0,
+        timeInBackgroundSun = 0, timeInBackgroundDunes = 0, timeDrawingPyramid = 0, timeInfBloomTriangle = 0, timeInfOutlineTriangle = 0,
+        timeInfBackFaceTriangle = 0, timeInfSideFaceTriangle = 0, timeInfFrontFaceTriangle = 0, timeInShowImage = 0, timeElapsedLastFrame = 0;
 
 struct pixel {
     char symbol;
@@ -162,225 +161,12 @@ void showImage(struct pixel canvas[41][156]) {
             colorizePixel(stringBuffer, canvas[j][i - 1].bRGB, j, i);
         }
     }
-    write(1, "\x1b[H", 7); // 1 being stdout
+    write(1, "\x1b[H", 3); // 1 being stdout
     fwrite(stringBuffer, 38376, 1, stdout);
     fflush(stdout);
 
     uint64_t end = getTimeInMicroseconds();
     timeInShowImage = end - start;
-}
-
-void frontFaceIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
-    if (j > (41 - iheight + iheight / 10)) {
-        if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
-            || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
-            canvas[j][i].symbol = 'I';
-            canvas[j][i].bRGB = 0b0111;
-        } else if ((i + (j % 3) * 3) % 9 == 0) {
-            canvas[j][i].symbol = 'I';
-            canvas[j][i].bRGB = 0b0111;
-        } else {
-            canvas[j][i].symbol = '_';
-            canvas[j][i].bRGB = 0b0111;
-        }
-    } else if (j == 41 - iheight) {
-        canvas[j][i].symbol = '^';
-        canvas[j][i].bRGB = 0b1110;
-    } else {
-        if (canvas[j][i - 3].symbol == '>' || (canvas[j][i - 3].symbol == '\\' /*&& canvas[j][i - 3].bRGB == '0b1110'// WHY THIS CHECK*/) ||
-            canvas[j][i + 3].symbol == '<' || (canvas[j][i + 3].symbol == '/' /*&& canvas[j][i + 3].bRGB == '0b1110'//FAIL?*/)) {
-            if (i < 78)
-                canvas[j][i].symbol = '/';
-            else
-                canvas[j][i].symbol = '\\';
-            canvas[j][i].bRGB = 0b1110;
-        } else {
-            canvas[j][i].symbol = '#';
-            canvas[j][i].bRGB = 0b1110;
-        }
-    }
-}
-
-void sideFaceIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
-    if (j > (41 - iheight + iheight / 10)) {
-        if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
-            || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
-            canvas[j][i].symbol = 'I';
-            canvas[j][i].bRGB = 0b0101;
-        } else if ((i + (j % 3) * 3) % 9 == 0) {
-            canvas[j][i].symbol = 'I';
-            canvas[j][i].bRGB = 0b0101;
-        } else {
-            canvas[j][i].symbol = '_';
-            canvas[j][i].bRGB = 0b0101;
-        }
-    } else if (j == 41 - iheight) {
-        canvas[j][i].symbol = '^';
-        canvas[j][i].bRGB = 0b1101;
-    } else {
-        if (canvas[j][i - 3].symbol == '>' || (canvas[j][i - 3].symbol == '\\' /*&& canvas[j][i - 3].bRGB == '0b1110'// WHY THIS CHECK*/) ||
-            canvas[j][i + 3].symbol == '<' || (canvas[j][i + 3].symbol == '/' /*&& canvas[j][i + 3].bRGB == '0b1110'//FAIL?*/)) {
-            if (i < 78)
-                canvas[j][i].symbol = '/';
-            else
-                canvas[j][i].symbol = '\\';
-            canvas[j][i].bRGB = 0b1101;
-        } else {
-            canvas[j][i].symbol = '#';
-            canvas[j][i].bRGB = 0b1101;
-        }
-    }
-}
-
-void backFaceIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
-    if (j > (41 - iheight + iheight / 10)) {
-        if (canvas[j][i - 3].symbol == '>' || canvas[j][i - 4].symbol == '>'
-            || canvas[j][i + 3].symbol == '<' || canvas[j][i + 4].symbol == '<') {
-            canvas[j][i].symbol = 'I';
-            canvas[j][i].bRGB = 0b0001;
-        } else if ((i + (j % 3) * 3) % 9 == 0) {
-            canvas[j][i].symbol = 'I';
-            canvas[j][i].bRGB = 0b0001;
-        } else {
-            canvas[j][i].symbol = '_';
-            canvas[j][i].bRGB = 0b0001;
-        }
-    } else if (j == 41 - iheight) {
-        canvas[j][i].symbol = '^';
-        canvas[j][i].bRGB = 0b1001;
-    } else {
-        if (canvas[j][i - 3].symbol == '>' || (canvas[j][i - 3].symbol == '\\' /*&& canvas[j][i - 3].bRGB == '0b1110'// WHY THIS CHECK*/) ||
-            canvas[j][i + 3].symbol == '<' || (canvas[j][i + 3].symbol == '/' /*&& canvas[j][i + 3].bRGB == '0b1110'//FAIL?*/)) {
-            if (i < 78)
-                canvas[j][i].symbol = '/';
-            else
-                canvas[j][i].symbol = '\\';
-            canvas[j][i].bRGB = 0b1001;
-        } else {
-            canvas[j][i].symbol = '#';
-            canvas[j][i].bRGB = 0b1001;
-        }
-    }
-}
-
-void outlineIfBlock(struct pixel canvas[41][156], int j, int i) {
-    canvas[j][i].symbol = '*';
-    canvas[j][i].bRGB = 0b1110;
-}
-
-void bloomIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
-    if (j == 39 - iheight && i > 77) {
-        canvas[j][i].symbol = '|';
-        canvas[j][i].bRGB = 0b1110;
-    } else if (j < (42 - iheight + iheight / 10) && j != (39 - iheight))
-        if (i < 78) {
-            canvas[j][i].symbol = '\\';
-            canvas[j][i].bRGB = 0b1110;
-        } else {
-            canvas[j][i].symbol = '/';
-            canvas[j][i].bRGB = 0b1110;
-        }
-    else if (i < 78 && j != (39 - iheight)) {
-        canvas[j][i].symbol = '>';
-        canvas[j][i].bRGB = 0b1110;
-    } else if (j != (39 - iheight)) {
-        canvas[j][i].symbol = '<';
-        canvas[j][i].bRGB = 0b1110;
-    }
-}
-
-void fillTriangle(Point v1, Point v2, Point v3, struct pixel canvas[41][156], int iheight, int ifBlock) {
-    //Scanline algorithm using y=mx+b
-    float slopeLeft = (v2.y * 1.0f - v1.y) / (v2.x - v1.x + 0.001f); //the 0.0001f bias is to get rid of 0 asymptote
-    float slopeRight = (v3.y * 1.0f - v2.y) / (v3.x - v2.x + 0.001f); //the 0.0001f bias is to get rid of 0 asymptote
-
-    float offsetLeft = v1.y - slopeLeft * v1.x;
-    float offsetRight = v2.y - slopeRight * v2.x;
-
-    for (int j = v2.y; j < v1.y; j++) {
-        int xLeft = (j - offsetLeft) / slopeLeft;
-        int xRight = (j - offsetRight) / slopeRight;
-
-        for (int i = xLeft; i < xRight; i++) {
-            switch (ifBlock) {
-                case 0: frontFaceIfBlock(canvas, iheight, j, i);
-                    break;
-                case 1: sideFaceIfBlock(canvas, iheight, j, i);
-                    break;
-                case 2: backFaceIfBlock(canvas, iheight, j, i);
-                    break;
-                case 3: outlineIfBlock(canvas, j, i);
-                    break;
-                case 4: bloomIfBlock(canvas, iheight, j, i);
-                    break;
-                default: printf("DEBUG: BAD IF BLOCK CASE. ifBlock = %i", ifBlock);
-            }
-        }
-    }
-}
-
-void fFrontFaceTriangle(struct pixel canvas[41][156], int iheight, unsigned int frameCounter) {
-    uint64_t start = getTimeInMicroseconds();
-
-    // Vertices
-    Point A = {78, 41 - iheight};
-    Point B = {0, 40};
-    Point C = {0, 40};
-    if (frameCounter >= 18 && frameCounter < 24) {
-        B.x = 78 + (iheight * 2) - ((frameCounter % 6) * (4 * iheight + 1) / 6);
-        C.x = 78 + (iheight * 2);
-    }
-    if (frameCounter < 6) {
-        B.x = 78 - (iheight * 2);
-        C.x = 78 + (iheight * 2) - ((frameCounter % 6) * (4 * iheight + 1) / 6);
-    }
-
-    fillTriangle(B, A, C, canvas, iheight, 0);
-
-    uint64_t end = getTimeInMicroseconds();
-    timeInfFrontFaceTriangle = end - start;
-}
-
-void fSideFaceTriangle(struct pixel canvas[41][156], int iheight, unsigned int frameCounter) {
-    uint64_t start = getTimeInMicroseconds();
-
-    // Vertices
-    Point A = {78, 41 - iheight};
-    Point B = {78 - (iheight * 2), 40};
-    Point C = {78 + (iheight * 2), 40};
-
-    fillTriangle(B, A, C, canvas, iheight, 1);
-
-    uint64_t end = getTimeInMicroseconds();
-    timeInfSideFaceTriangle = end - start;
-}
-
-void fBackFaceTriangle(struct pixel canvas[41][156], int iheight) {
-    uint64_t start = getTimeInMicroseconds();
-
-    // Vertices
-    Point A = {78, 41 - iheight};
-    Point B = {78 - (iheight * 2), 40};
-    Point C = {78 + (iheight * 2), 40};
-
-    fillTriangle(B, A, C, canvas, iheight, 2);
-
-    uint64_t end = getTimeInMicroseconds();
-    timeInfBackFaceTriangle = end - start;
-}
-
-void fOutlineTriangle(struct pixel canvas[41][156], int iheight) {
-    uint64_t start = getTimeInMicroseconds();
-
-    // Vertices
-    Point A = {78, 40 - iheight};
-    Point B = {78 - (iheight * 2) - 1, 40};
-    Point C = {78 + (iheight * 2) + 1, 40};
-
-    fillTriangle(B, A, C, canvas, iheight, 3);
-
-    uint64_t end = getTimeInMicroseconds();
-    timeInfOutlineTriangle = end - start;
 }
 
 /**
@@ -400,6 +186,7 @@ float edgeFunction(Point v1, Point v2, Point v3) {
  * @param A Apex of the triangle
  * @param B Point left of apex
  * @param C Point right of apex
+ * @param bRGB Color of the pixels to draw
  */
 void drawTriangle(struct pixel canvas[41][156], Point A, Point B, Point C, unsigned char bRGB) {
     const int minX = min(A.x, min(B.x,C.x));
@@ -430,10 +217,10 @@ void drawTriangle(struct pixel canvas[41][156], Point A, Point B, Point C, unsig
 void drawPyramid(struct pixel canvas[41][156], Point pyramid[5]) {
     uint64_t start = getTimeInMicroseconds();
 
-    drawTriangle(canvas, pyramid[0], pyramid[1], pyramid[2], 0b1010); // Front Face
-    drawTriangle(canvas, pyramid[0], pyramid[2], pyramid[3], 0b1011); // Right Face
-    drawTriangle(canvas, pyramid[0], pyramid[3], pyramid[4], 0b1110); // Back Face
-    drawTriangle(canvas, pyramid[0], pyramid[4], pyramid[1], 0b1101); // Left Face
+    drawTriangle(canvas, pyramid[0], pyramid[1], pyramid[2], 0b1111); // Front Face
+    drawTriangle(canvas, pyramid[0], pyramid[2], pyramid[3], 0b0111); // Right Face
+    drawTriangle(canvas, pyramid[0], pyramid[3], pyramid[4], 0b1000); // Back Face
+    drawTriangle(canvas, pyramid[0], pyramid[4], pyramid[1], 0b0000); // Left Face
 
     /* Uncomment to draw Points
      *if (pyramid[0].z > 0) {
@@ -654,6 +441,7 @@ void initializeCanvas(struct pixel canvas[41][156]) {
 
     fflush(stdout);
     system("cls");
+
     for (int i = 0; i < 156; i++) {
         for (int j = 0; j < 41; j++) {
             canvas[j][i].symbol = ' ';
