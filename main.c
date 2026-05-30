@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <time.h>
+#include <math.h>
 
 
 #pragma region Terminal Color Defines
@@ -77,9 +78,23 @@ int usleep(const unsigned int usecond) {
 
 
 char buffer[40000] = {0};
-int randomOffset, randomDuneHeight = 0;
-uint64_t startGlobalTimer, endGlobalTimer, timeInInitializeCanvas, timeInbFill, timeInbCircleEdge, timeInbSun, timeInbDunes, timeInfBloomTriangle,
-        timeInfOutlineTriangle, timeInfBackFaceTriangle, timeInfSideFaceTriangle, timeInfFrontFaceTriangle, timeInShowImage, timeElapsedLastFrame = 0;
+int randomOffset = 0, randomDuneHeight = 0;
+uint64_t startGlobalTimer = 0, endGlobalTimer = 0, timeInInitializeCanvas = 0, timeInBackgroundFill = 0, timeInBackgroundCircleEdge = 0, timeInBackgroundSun = 0
+        ,
+        timeInBackgroundDunes = 0,
+        timeDrawingPyramid = 0, timeInfBloomTriangle = 0, timeInfOutlineTriangle = 0, timeInfBackFaceTriangle = 0, timeInfSideFaceTriangle = 0,
+        timeInfFrontFaceTriangle = 0, timeInShowImage = 0, timeElapsedLastFrame = 0;
+
+struct pixel {
+    char symbol;
+    unsigned char bRGB;
+};
+
+typedef struct {
+    float x; // right
+    float y; // up
+    float z; // positive z = further from camera
+} Point;
 
 uint64_t getTimeInMicroseconds() {
     uint64_t timeInMicroseconds = 0;
@@ -95,11 +110,6 @@ uint64_t getTimeInMicroseconds() {
 #endif
     return timeInMicroseconds;
 }
-
-struct pixel {
-    char symbol;
-    unsigned char bRGB;
-};
 
 void adjustFrameRate(float targetFrameRate) {
     endGlobalTimer = getTimeInMicroseconds();
@@ -159,11 +169,6 @@ void showImage(struct pixel canvas[41][156]) {
     uint64_t end = getTimeInMicroseconds();
     timeInShowImage = end - start;
 }
-
-typedef struct {
-    int x;
-    int y;
-} Point;
 
 void frontFaceIfBlock(struct pixel canvas[41][156], int iheight, int j, int i) {
     if (j > (41 - iheight + iheight / 10)) {
@@ -378,38 +383,137 @@ void fOutlineTriangle(struct pixel canvas[41][156], int iheight) {
     timeInfOutlineTriangle = end - start;
 }
 
-void fBloomTriangle(struct pixel canvas[41][156], int iheight) {
-    uint64_t start = getTimeInMicroseconds();
-    // Vertices
-    Point A = {77, 39 - iheight};
-    Point B = {77 - (iheight * 2) - 3, 40};
-    Point C = {77 + (iheight * 2) + 3, 40};
-
-    fillTriangle(B, A, C, canvas, iheight, 4);
-
-    uint64_t end = getTimeInMicroseconds();
-    timeInfBloomTriangle = end - start;
+/**
+ *  Calculates the signed (positive/negative) area of a triangle.
+ * @param v1 Point representing the apex of the pyramid
+ * @param v2 Point left of the apex of the pyramid, when facing the v1-v2-v3 triangle
+ * @param v3 Point right of the apex of the pyramid, when facing the v1-v2-v3 triangle
+ * @return The signed area of the v1-v2-v3 triangle. The sign indicates if the point is to the right of the v1-v2 line segment.
+ */
+float edgeFunction(Point v1, Point v2, Point v3) {
+    return (v2.x - v1.x) * (v3.y - v1.y) - (v2.y - v1.y) * (v3.x - v1.x);
 }
 
-int sin(int x) {
-    // the width of the canvas is 156, and the size of the sin table is 52, to ensure proper tiling, must modulo x by width of this array.
+/**
+ * Draws specified triangle on screen, triangle is only rendered if facing the camera.
+ * @param canvas Screen canvas
+ * @param A Apex of the triangle
+ * @param B Point left of apex
+ * @param C Point right of apex
+ */
+void drawTriangle(struct pixel canvas[41][156], Point A, Point B, Point C, unsigned char bRGB) {
+    const int minX = min(A.x, min(B.x,C.x));
+    const int maxX = max(A.x, max(B.x,C.x));
+    const int minY = min(A.y, min(B.y,C.y));
+    const int maxY = max(A.y, max(B.y,C.y));
+
+    for (int j = minY; j < maxY; j++)
+        for (int i = minX; i < maxX; i++) {
+            Point tmp = {i, j, 0};
+            float ABT = edgeFunction(A, B, tmp);
+            float BCT = edgeFunction(B, C, tmp);
+            float CAT = edgeFunction(C, A, tmp);
+
+            if (ABT <= 0 && CAT <= 0 && BCT <= 0) {
+                canvas[j][i].symbol = '-';
+                canvas[j][i].bRGB = bRGB;
+            }
+        }
+    canvas[(int) A.y][(int) A.x].symbol = '^';
+}
+
+/**
+ * Draws the pyramid by calculating the current rotation, and then appropriately rendering the 4 side triangles of the pyramid.
+ * @param canvas Screen canvas
+ * @param pyramid The point array of the points that represent each vertex of the pyramid.
+ */
+void drawPyramid(struct pixel canvas[41][156], Point pyramid[5]) {
+    uint64_t start = getTimeInMicroseconds();
+
+    drawTriangle(canvas, pyramid[0], pyramid[1], pyramid[2], 0b1010); // Front Face
+    drawTriangle(canvas, pyramid[0], pyramid[2], pyramid[3], 0b1011); // Right Face
+    drawTriangle(canvas, pyramid[0], pyramid[3], pyramid[4], 0b1110); // Back Face
+    drawTriangle(canvas, pyramid[0], pyramid[4], pyramid[1], 0b1101); // Left Face
+
+    /* Uncomment to draw Points
+     *if (pyramid[0].z > 0) {
+        canvas[(int) pyramid[0].y - 1][(int) pyramid[0].x].symbol = 'A';
+        canvas[(int) pyramid[0].y - 1][(int) pyramid[0].x].bRGB = 0b0101;
+    } else if (pyramid[0].z == 0) {
+        canvas[(int) pyramid[0].y][(int) pyramid[0].x].symbol = 'A';
+        canvas[(int) pyramid[0].y][(int) pyramid[0].x].bRGB = 0b0110;
+    } else {
+        canvas[(int) pyramid[0].y][(int) pyramid[0].x].symbol = 'A';
+        canvas[(int) pyramid[0].y][(int) pyramid[0].x].bRGB = 0b0011;
+    }
+
+    if (pyramid[1].z > 0) {
+        canvas[(int) pyramid[1].y - 1][(int) pyramid[1].x].symbol = 'B';
+        canvas[(int) pyramid[1].y - 1][(int) pyramid[1].x].bRGB = 0b0101;
+    } else if (pyramid[1].z == 0) {
+        canvas[(int) pyramid[1].y][(int) pyramid[1].x].symbol = 'B';
+        canvas[(int) pyramid[1].y][(int) pyramid[1].x].bRGB = 0b0110;
+    } else {
+        canvas[(int) pyramid[1].y][(int) pyramid[1].x].symbol = 'B';
+        canvas[(int) pyramid[1].y][(int) pyramid[1].x].bRGB = 0b0011;
+    }
+
+    if (pyramid[2].z > 0) {
+        canvas[(int) pyramid[2].y - 1][(int) pyramid[2].x].symbol = 'C';
+        canvas[(int) pyramid[2].y - 1][(int) pyramid[2].x].bRGB = 0b0101;
+    } else if (pyramid[2].z == 0) {
+        canvas[(int) pyramid[2].y][(int) pyramid[2].x].symbol = 'C';
+        canvas[(int) pyramid[2].y][(int) pyramid[2].x].bRGB = 0b0110;
+    } else {
+        canvas[(int) pyramid[2].y][(int) pyramid[2].x].symbol = 'C';
+        canvas[(int) pyramid[2].y][(int) pyramid[2].x].bRGB = 0b0011;
+    }
+
+    if (pyramid[3].z > 0) {
+        canvas[(int) pyramid[3].y - 1][(int) pyramid[3].x].symbol = 'D';
+        canvas[(int) pyramid[3].y - 1][(int) pyramid[3].x].bRGB = 0b0101;
+    } else if (pyramid[3].z == 0) {
+        canvas[(int) pyramid[3].y][(int) pyramid[3].x].symbol = 'D';
+        canvas[(int) pyramid[3].y][(int) pyramid[3].x].bRGB = 0b0110;
+    } else {
+        canvas[(int) pyramid[3].y][(int) pyramid[3].x].symbol = 'D';
+        canvas[(int) pyramid[3].y][(int) pyramid[3].x].bRGB = 0b0011;
+    }
+
+    if (pyramid[4].z > 0) {
+        canvas[(int) pyramid[4].y - 1][(int) pyramid[4].x].symbol = 'E';
+        canvas[(int) pyramid[4].y - 1][(int) pyramid[4].x].bRGB = 0b0101;
+    } else if (pyramid[4].z == 0) {
+        canvas[(int) pyramid[4].y][(int) pyramid[4].x].symbol = 'E';
+        canvas[(int) pyramid[4].y][(int) pyramid[4].x].bRGB = 0b0110;
+    } else {
+        canvas[(int) pyramid[4].y][(int) pyramid[4].x].symbol = 'E';
+        canvas[(int) pyramid[4].y][(int) pyramid[4].x].bRGB = 0b0011;
+    }*/
+
+    uint64_t end = getTimeInMicroseconds();
+    timeDrawingPyramid = end - start;
+}
+
+int wave(int x) {
+    // the width of the canvas is 156, and the size of the wave table is 52, to ensure proper tiling, must modulo x by width of this array.
     x %= 52;
 
     // size of array is 52 because 156/3 = 52.
-    int sinTable[] = {
+    int waveTable[] = {
         0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 0, 0, 0, -1, -1, -1, -2, -2, -2, -2, -3, -3, -3, -3, -3, -3, -2, -2, -2, -2, -1,
         -1, -1, -1, -1, -1, -1, 0, 0
     };
-    return sinTable[x];
+    return waveTable[x];
 }
 
-void bDunes(struct pixel canvas[41][156]) {
+void backgroundDunes(struct pixel canvas[41][156]) {
     uint64_t start = getTimeInMicroseconds();
 
     //It's impossible to render a dune @ j > 10 pixels with our current math.
     for (int j = 37; j > 10; j--) {
         for (int i = 0; i < 156; i++) {
-            if (j >= 41 - (randomDuneHeight + sin(i + randomOffset)) && j < 38) {
+            if (j >= 41 - (randomDuneHeight + wave(i + randomOffset)) && j < 38) {
                 canvas[j][i].symbol = '`';
                 canvas[j][i].bRGB = 0b1111;
                 for (int k = j + 1; k < 38; k++) {
@@ -420,10 +524,10 @@ void bDunes(struct pixel canvas[41][156]) {
     }
 
     uint64_t end = getTimeInMicroseconds();
-    timeInbDunes = end - start;
+    timeInBackgroundDunes = end - start;
 }
 
-void bSun(struct pixel canvas[41][156], int iheight) {
+void backgroundSun(struct pixel canvas[41][156], int iheight) {
     uint64_t start = getTimeInMicroseconds();
 
     for (int j = 0; j < 38; j++) {
@@ -441,10 +545,10 @@ void bSun(struct pixel canvas[41][156], int iheight) {
     }
 
     uint64_t end = getTimeInMicroseconds();
-    timeInbSun = end - start;
+    timeInBackgroundSun = end - start;
 }
 
-void bCircleEdge(struct pixel canvas[41][156]) {
+void backgroundCircleEdge(struct pixel canvas[41][156]) {
     uint64_t start = getTimeInMicroseconds();
 
 #pragma region Pixel Isolation Check
@@ -473,10 +577,10 @@ void bCircleEdge(struct pixel canvas[41][156]) {
     }
 
     uint64_t end = getTimeInMicroseconds();
-    timeInbCircleEdge = end - start;
+    timeInBackgroundCircleEdge = end - start;
 }
 
-void bFill(struct pixel canvas[41][156], const int iheight) {
+void backgroundFill(struct pixel canvas[41][156], const int iheight) {
     //MULTIPLY X BY RATIO TO GET ACCURATE LENGTH 2.2f
     //ORIGIN IS (78,20.5)
 
@@ -493,14 +597,16 @@ void bFill(struct pixel canvas[41][156], const int iheight) {
                     canvas[j][i].symbol = '+';
                 else
                     canvas[j][i].symbol = ' ';
-
+                canvas[j][i].bRGB = 0b1000;
+            } else {
+                canvas[j][i].symbol = ' ';
                 canvas[j][i].bRGB = 0b1000;
             }
         }
     }
     for (int j = 38; j < 41; j++) {
         for (int i = 0; i < 156; i++) {
-            if ((i + (j % 3) * 2) % 4 == 0)
+            if ((i + (j % 2) * 2) % 4 == 0)
                 canvas[j][i].symbol = '_';
             else
                 canvas[j][i].symbol = ' ';
@@ -509,7 +615,38 @@ void bFill(struct pixel canvas[41][156], const int iheight) {
     }
 
     uint64_t end = getTimeInMicroseconds();
-    timeInbFill = end - start;
+    timeInBackgroundFill = end - start;
+}
+
+/**
+ * Rotates points of an array along the y-axis.
+ * @param point A pointer to the array of points.
+ * @param arrSize Number of elements of array.
+ * @param radianRotation The rotation to apply to the points.
+ */
+void yAxisPointRotation(Point *point, int arrSize, double radianRotation) {
+    Point tmp = {0};
+    float tmpX = 0;
+    float cosTheta = cos(radianRotation), sinTheta = sin(radianRotation);
+
+    //foreach(point : pyramid)
+    Point *end = point + arrSize;
+    for (; point < end; point++) {
+        // Translate the prism back to origin
+        tmpX = point->x - 78;
+
+        // Rotate the prism
+        tmp.x = tmpX * cosTheta + point->z * sinTheta;
+        tmp.y = point->y;
+        tmp.z = tmpX * -sinTheta + point->z * cosTheta;
+
+        // Translate the prism back to its offset
+        tmp.x += 78;
+
+        point->x = tmp.x;
+        point->y = tmp.y;
+        point->z = tmp.z;
+    }
 }
 
 void initializeCanvas(struct pixel canvas[41][156]) {
@@ -528,38 +665,45 @@ void initializeCanvas(struct pixel canvas[41][156]) {
     timeInInitializeCanvas = end - start;
 }
 
-void drawOutput(int iheight) {
+void drawOutputLoop(int iheight) {
     struct pixel canvas[41][156] = {}; //156x41 = pixel position
-    unsigned int frameCounter = 0; //Aiming for 16 total frames at 4 fps, for a total of 4 seconds of run time
+    unsigned int frameCounter = 0;
+    unsigned int totalAnimationFrames = 24;
+    double yRotation = (2.0f * M_PI) / totalAnimationFrames;
+
+    // 0-indexed so every value is -1
+    Point pyramid[5] = {
+        {78, 40 - iheight, 0}, // Apex of pyramid
+        {78 - iheight * 1.75f, 40, -iheight * 1.75f},
+        {78 + iheight * 1.75f, 40, -iheight * 1.75f},
+        {78 + iheight * 1.75f, 40, +iheight * 1.75f},
+        {78 - iheight * 1.75f, 40, +iheight * 1.75f}
+    };
 
     initializeCanvas(canvas);
     srand(time(NULL));
-    randomOffset = rand() % 52; // Size of sin array is 52, so we can offset by up to 51.
+    randomOffset = rand() % 52; // Size of wave array is 52, so we can offset by up to 51
     randomDuneHeight = 20 - (33 - iheight) / 2 + (rand() % 4);
 
-    while (1) {
+    for (;; frameCounter++) {
         startGlobalTimer = getTimeInMicroseconds();
         if (kbhit())
             if (getch() == ' ') // Space bar
                 break;
         fflush(stdin);
 
-        bFill(canvas, iheight);
-        bCircleEdge(canvas);
-        bSun(canvas, iheight);
-        bDunes(canvas);
-        //fBloomTriangle(canvas, iheight);
-        fOutlineTriangle(canvas, iheight);
-        fBackFaceTriangle(canvas, iheight);
-        fSideFaceTriangle(canvas, iheight, frameCounter);
-        fFrontFaceTriangle(canvas, iheight, frameCounter);
+        backgroundFill(canvas, iheight);
+        backgroundCircleEdge(canvas);
+        backgroundSun(canvas, iheight);
+        backgroundDunes(canvas);
+        drawPyramid(canvas, pyramid);
+
         showImage(canvas);
+
         float targetFrameRate = 4.0f;
         adjustFrameRate(targetFrameRate);
 
-        frameCounter++;
-        if (frameCounter > 24)
-            frameCounter = 0;
+        yAxisPointRotation(pyramid, 5, yRotation);
     }
 }
 
@@ -576,27 +720,24 @@ int main(void) {
         scanf("%f", &height);
 
         iheight = (int) height;
-        if (height > 5 && height < 40 && height == iheight) {
+        if (height > 0 && height < 31 && height == iheight) {
             break;
         }
 
-        fwrite("\n\t<Veuillez saisir un nombre entre 6 et 39 et reessayer.>\n\n", 63, 1,stdout);
+        fwrite("\n\t<Veuillez saisir un nombre entre 1 et 30 et reessayer.>\n\n", 63, 1,stdout);
         fflush(stdout);
         fflush(stdin);
     }
 
     fflush(stdin);
-    drawOutput(iheight);
+    drawOutputLoop(iheight);
     system("cls");
 
     printf("\x1b[97mDEBUG: ELAPSED TIME IN EACH FUNCTION :\n\t\t\t"
-           "initializeCanvas = %"PRIu64" \xE6s\n\t\t\tbfill = %"PRIu64" \xE6s\n\t\t\tbCircleEdge = %"PRIu64" \xE6s\n\t\t\tbSun = %"PRIu64"\n\t\t\tbDunes = %"
-           PRIu64"\n\t\t\t"
-           "fBloomTriangle = %"PRIu64" \xE6s\n\t\t\tfOutlineTriangle = %"PRIu64" \xE6s\n\t\t\tfBackFaceTriangle = %"PRIu64" \xE6s\n\t\t\tfSideFaceTriangle = %"
-           PRIu64" \xE6s\n\t\t\t"
-           "fFrontFaceTriangle = %"PRIu64" \xE6s\n\t\t\tshowImage = %"PRIu64" \xE6s\n\t\t\ttotal = % "PRIu64" \xE6s\n",
-           timeInInitializeCanvas, timeInbFill, timeInbCircleEdge, timeInbSun, timeInbDunes, timeInfBloomTriangle,
-           timeInfOutlineTriangle, timeInfBackFaceTriangle, timeInfSideFaceTriangle, timeInfFrontFaceTriangle,
+           "initializeCanvas = %"PRIu64" \xE6s\n\t\t\tbfill = %"PRIu64" \xE6s\n\t\t\tbackgroundCircleEdge = %"PRIu64""
+           " \xE6s\n\t\t\tbackgroundSun = %"PRIu64"\n\t\t\tbackgroundDunes = %"PRIu64"\n\t\t\t" "timeDrawingPyramid = %"PRIu64" "
+           "\xE6s\n\t\t\tshowImage = %"PRIu64" \xE6s\n\t\t\ttotal = %"PRIu64" \xE6s\n",
+           timeInInitializeCanvas, timeInBackgroundFill, timeInBackgroundCircleEdge, timeInBackgroundSun, timeInBackgroundDunes, timeDrawingPyramid,
            timeInShowImage, timeElapsedLastFrame);
     fflush(stdout);
     system("pause");
